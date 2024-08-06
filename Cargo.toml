@@ -2,8 +2,20 @@
 name = "google-book-downloader"
 version = "0.1.0"
 edition = "2021"
+default-run = "gbdt"
+
+[lib]
+name = "google_book_downloader"
+path = "src/lib/lib.rs"
+
+[[bin]]
+name = "gbdt"
+path = "src/util/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 lopdf = {version = "0.33.0", features = ["embed_image"]}
+scraper = {version = "0.20.0"}
+reqwest = {version = "0.12.5", features = ["blocking"]}
+url = {version = "2.5.2"}
