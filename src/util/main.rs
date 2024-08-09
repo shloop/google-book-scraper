@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use google_book_downloader::*;
+use google_book_scraper::*;
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
