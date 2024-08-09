@@ -1,2 +1,2 @@
-pub mod page_scraper;
 pub mod pdf;
+pub mod scraper;

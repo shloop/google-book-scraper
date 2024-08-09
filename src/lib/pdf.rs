@@ -191,12 +191,21 @@ fn create_pdf_internal(
         }),
     );
     let outline_id = doc.build_outline();
-    let catalog_id = doc.add_object(dictionary! {
-        "Type" => "Catalog",
-        "Pages" => pages_id,
-        "Outlines" => outline_id.unwrap(),
-    });
-    doc.trailer.set("Root", catalog_id);
+    if let Some(ol) = outline_id {
+        let catalog_id = doc.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => pages_id,
+            "Outlines" => ol,
+        });
+        doc.trailer.set("Root", catalog_id);
+    } else {
+        let catalog_id = doc.add_object(dictionary! {
+            "Type" => "Catalog",
+            "Pages" => pages_id,
+        });
+        doc.trailer.set("Root", catalog_id);
+    }
+
     doc.compress();
     doc.save(dest)?;
     Ok(())
