@@ -1,13 +1,12 @@
-use std::collections::HashSet;
-
 use clap::{Parser, ValueEnum};
 use google_book_downloader::*;
+use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
     /// URL of book to download
-    #[arg(short = 'i', long, value_name = "BOOK_URL")]
+    #[arg(value_name = "URL")] //(short = 'i', long, value_name = "BOOK_URL")]
     url: String,
 
     /// Directory to save issue(s) to
@@ -15,7 +14,7 @@ struct Args {
         short = 'o',
         long = "target-dir",
         value_name = "DIRECTORY",
-        default_value = "out"
+        default_value = "."
     )]
     target_dir: String,
 
@@ -34,6 +33,7 @@ struct Args {
     /// Don't include books in provided file. File will be updated with books downloaded.
     #[arg(short, long)]
     archive: Option<String>,
+    // TODO: File naming scheme
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

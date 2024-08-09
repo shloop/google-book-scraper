@@ -82,26 +82,30 @@ impl TableOfContents {
 ///
 /// # Arguments
 ///
-/// * `image_dir` - Directory where images to be converted into pafes of PDF exist.
-/// * `dest` - Path to save PDF to, including filename and extension.
-pub fn create_pdf(image_dir: &str, dest: &str) -> io::Result<()> {
-    create_pdf_internal(image_dir, dest, None)
+/// * `image_dir` - Directory where images to be converted into pages of PDF exist.
+/// * `target_filename` - Path to save PDF to, including filename and extension.
+pub fn create_pdf(image_dir: &str, target_filename: &str) -> io::Result<()> {
+    create_pdf_internal(image_dir, target_filename, None)
 }
 
 /// Creates a PDF from images in a specified directory.
 ///
 /// # Arguments
 ///
-/// * `image_dir` - Directory where images to be converted into pafes of PDF exist.
-/// * `dest` - Path to save PDF to, including filename and extension.
+/// * `image_dir` - Directory where images to be converted into pages of PDF exist.
+/// * `target_filename` - Path to save PDF to, including filename and extension.
 /// * `toc` - Table fo contents mapping image files to page titles.
-pub fn create_pdf_with_toc(image_dir: &str, dest: &str, toc: &TableOfContents) -> io::Result<()> {
-    create_pdf_internal(image_dir, dest, Some(toc))
+pub fn create_pdf_with_toc(
+    image_dir: &str,
+    target_filename: &str,
+    toc: &TableOfContents,
+) -> io::Result<()> {
+    create_pdf_internal(image_dir, target_filename, Some(toc))
 }
 
 fn create_pdf_internal(
     image_dir: &str,
-    dest: &str,
+    target_filename: &str,
     toc: Option<&TableOfContents>,
 ) -> io::Result<()> {
     // Initialize document
@@ -207,6 +211,6 @@ fn create_pdf_internal(
     }
 
     doc.compress();
-    doc.save(dest)?;
+    doc.save(target_filename)?;
     Ok(())
 }

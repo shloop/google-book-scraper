@@ -7,6 +7,7 @@ use std::io::{self};
 use std::io::{Read, Write};
 use url::Url;
 
+use crate::cbz::create_cbz;
 use crate::pdf::{create_pdf_with_toc, TableOfContents};
 
 /// Scrape options.
@@ -337,16 +338,21 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
 
     // Download any formats not already downloaded.
     if formats.contains(FormatFlags::Pdf) {
+        println!("Generating PDF...");
+
         create_pdf_with_toc(&issue_pics_dir, &filename_pdf, &toc)?;
     }
     if formats.contains(FormatFlags::Cbz) {
-        print!("CBZ support not available yet")
+        println!("Generating CBZ...");
+
+        create_cbz(&issue_pics_dir, &filename_cbz)?;
     }
 
     if !(options.keep_images || exists_already) {
         std::fs::remove_dir_all(&issue_pics_dir)?;
     }
 
+    // All done. Add to list of downloaded books and update archive file if applicable.
     options.already_downloaded.insert(id.to_string());
     if let Some(archive) = options.archive_file.as_ref() {
         if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(archive) {
