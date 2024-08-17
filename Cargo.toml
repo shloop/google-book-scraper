@@ -3,9 +3,10 @@ name = "google-book-scraper"
 version = "0.1.0"
 edition = "2021"
 default-run = "gbscraper"
+license = "MIT"
 
 [lib]
-name = "google_book_scraper"
+name = "gbscraper"
 path = "src/lib/lib.rs"
 
 [[bin]]
