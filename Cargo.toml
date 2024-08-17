@@ -5,6 +5,7 @@ edition = "2021"
 description = "Tool and library for downloading the contents of books hosted on books.google.com for offline viewing."
 default-run = "gbscraper"
 license = "MIT"
+repository = "https://github.com/shloop/google-book-scraper"
 
 [lib]
 name = "gbscraper"
