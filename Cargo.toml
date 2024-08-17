@@ -1,7 +1,7 @@
 [package]
 name = "google-book-scraper"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 description = "Tool and library for downloading the contents of books hosted on books.google.com for offline viewing."
 default-run = "gbscraper"
 license = "MIT"
