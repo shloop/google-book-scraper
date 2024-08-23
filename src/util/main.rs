@@ -93,9 +93,12 @@ impl Args {
 fn main() {
     let args = Args::parse();
     let mut options = args.to_options();
-    let _ = match args.download_mode {
+    let result = match args.download_mode {
         DownloadMode::Single => scraper::download_issue(&args.url, &args.target_dir, &mut options),
         DownloadMode::Period => scraper::download_period(&args.url, &args.target_dir, &mut options),
         DownloadMode::Full => scraper::download_all(&args.url, &args.target_dir, &mut options),
     };
+    if let Err(x) = result {
+        eprintln!("Scraper error: {}", x);
+    }
 }

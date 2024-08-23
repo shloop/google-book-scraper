@@ -2,6 +2,7 @@ use bitflags::bitflags;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt::Display;
 use std::fs::OpenOptions;
 use std::io::{self};
 use std::io::{Read, Write};
@@ -87,8 +88,8 @@ impl IssueMetadata {
     }
 
     /// Parses metadata from the provided HTML element.
-    fn parse(&mut self, element: &ElementRef) {
-        let selector = Selector::parse(".booktitle").unwrap();
+    fn parse(&mut self, element: &ElementRef) -> io::Result<()> {
+        let selector = Selector::parse(".booktitle").to_result()?;
         for e in element.select(&selector) {
             for child in e.text() {
                 self.series_name = child.to_string();
@@ -96,7 +97,7 @@ impl IssueMetadata {
             }
             break;
         }
-        let selector = Selector::parse("#synopsistext").unwrap();
+        let selector = Selector::parse("#synopsistext").to_result()?;
         for e in element.select(&selector) {
             for child in e.text() {
                 self.description = child.to_string();
@@ -104,7 +105,7 @@ impl IssueMetadata {
             }
             break;
         }
-        let selector = Selector::parse("#metadata").unwrap();
+        let selector = Selector::parse("#metadata").to_result()?;
         for e in element.select(&selector) {
             let mut i: u32 = 0;
             for child in e.text() {
@@ -127,6 +128,20 @@ impl IssueMetadata {
             }
             break;
         }
+        Ok(())
+    }
+}
+
+trait ToResult<T> {
+    fn to_result(self) -> std::io::Result<T>;
+}
+
+impl<T, E: Display> ToResult<T> for std::result::Result<T, E> {
+    fn to_result(self) -> std::io::Result<T> {
+        match self {
+            Ok(x) => Ok(x),
+            Err(x) => Err(std::io::Error::new(io::ErrorKind::Other, x.to_string())),
+        }
     }
 }
 
@@ -138,8 +153,11 @@ impl IssueMetadata {
 /// * `dest` - Filename of image to link to.
 /// * `options` - Various options for how to process downloaded images.
 pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
+    // TODO: get name of individual book not in series
+    // TODO: support ne wstyle URLs
+
     // Parse ID from URL.
-    let mut url_obj = Url::try_from(url).unwrap();
+    let mut url_obj = Url::try_from(url).to_result()?;
 
     let mut id = String::new();
     for (key, val) in url_obj.query_pairs() {
@@ -157,16 +175,15 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
     println!("Identifying book: {id}...");
 
     // Fetch page.
-    let mut res = reqwest::blocking::get(url).unwrap();
-    let mut body = String::new();
-    res.read_to_string(&mut body)?;
+    let res = reqwest::blocking::get(url).to_result()?;
+    let body = res.text().to_result()?;
     let doc = Html::parse_document(&body);
 
     // Parse issue metadata from page.
     let mut issue_meta = IssueMetadata::new(&id);
-    let selector = Selector::parse("#summary_content_table").unwrap();
+    let selector = Selector::parse("#summary_content_table").to_result()?;
     for element in doc.select(&selector) {
-        issue_meta.parse(&element);
+        issue_meta.parse(&element)?;
         break;
     }
 
@@ -200,7 +217,7 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
 
     // Parse TOC info.
     let mut toc_page_title_lookup = HashMap::<String, String>::new();
-    let selector = Selector::parse("#toc tr").unwrap();
+    let selector = Selector::parse("#toc tr").to_result()?;
     let mut i = 0;
     let mut bookmark_text = String::new();
     let mut bookmark_page_id = String::new();
@@ -208,16 +225,16 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
         // Bookmarks encompass two <td>s, so this will alternate between title and description/keywords
         if i % 2 == 0 {
             // Title
-            for span in element.select(&Selector::parse("span").unwrap()) {
+            for span in element.select(&Selector::parse("span").to_result()?) {
                 for str in span.text() {
                     bookmark_text += str;
                 }
                 break;
             }
 
-            for link in element.select(&Selector::parse("a").unwrap()) {
+            for link in element.select(&Selector::parse("a").to_result()?) {
                 if let Some(href) = link.attr("href") {
-                    let link_url_obj = Url::try_from(href).unwrap();
+                    let link_url_obj = Url::try_from(href).to_result()?;
                     for (key, val) in link_url_obj.query_pairs() {
                         if key == "pg" {
                             bookmark_page_id = val.to_string();
@@ -249,24 +266,24 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
     // Fetch JSON to get info about all pages.
     let json_query_str = std::format!("id={id}&lpg=1&pg=1&jscmd=click3");
     url_obj.set_query(Some(&json_query_str));
-    let mut res = reqwest::blocking::get(url_obj.to_string()).unwrap();
+    let mut res = reqwest::blocking::get(url_obj.to_string()).to_result()?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
-    let issue: IssueJson = serde_json::from_str(&body).unwrap();
+    let issue: IssueJson = serde_json::from_str(&body).to_result()?;
 
     // Make lookup of all pages referenced in json and their absolute page number.
     let mut page_number_lookup = HashMap::<String, usize>::new();
     let mut pages_to_download = VecDeque::<String>::new();
     let mut first_page = "1".to_string();
-    let mut i = 1;
+    let mut i_page = 1;
     for page in issue.page {
         if let None = page.src {
-            page_number_lookup.insert(page.pid.clone(), i);
+            page_number_lookup.insert(page.pid.clone(), i_page);
             pages_to_download.push_back(page.pid.clone());
-            if i == 1 {
+            if i_page == 1 {
                 first_page = page.pid;
             }
-            i += 1;
+            i_page += 1;
         }
     }
 
@@ -283,22 +300,28 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
         // Fetch JSON for page.
         let json_query_str = std::format!("id={id}&lpg={first_page}&pg={page_id}&jscmd=click3");
         url_obj.set_query(Some(&json_query_str));
-        let mut res = reqwest::blocking::get(url_obj.to_string()).unwrap();
+        let mut res = reqwest::blocking::get(url_obj.to_string()).to_result()?;
         let mut body = String::new();
         res.read_to_string(&mut body)?;
-        let issue: IssueJson = serde_json::from_str(&body).unwrap();
+        let issue: IssueJson = serde_json::from_str(&body).to_result()?;
 
         // Download images linked in JSON.
+        // Note: JSON will contain an entry for every page in book. Requested page should have accompanying source URL, and adjacent pages may as well.
         for page in issue.page {
             if let Some(src) = page.src {
+                // Skip if already downloaded.
+                if pages_downloaded.contains(&page.pid) {
+                    continue;
+                }
+
                 // Fetch image at highest available resolution.
-                let mut res = reqwest::blocking::get(src + "&w=10000").unwrap();
+                let mut res = reqwest::blocking::get(src + "&w=10000").to_result()?;
 
                 // Determine image type from HTTP result.
                 let mut ext = "jpg";
                 for (name, value) in res.headers() {
                     if name.as_str() == "content-type" {
-                        ext = value.to_str().unwrap();
+                        ext = value.to_str().to_result()?;
                         let mut start = 0;
                         if let Some(x) = ext.find("/") {
                             start = x + 1
@@ -312,9 +335,16 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
                 }
 
                 // Generate filename based on page order, page ID, and image type.
+                let mut p = 0;
+                let page_number = page_number_lookup.get(&page.pid).unwrap_or_else(|| {
+                    // In unlikely case where page ID was not included in original JSON, append to end of known pages.
+                    p = i_page;
+                    i_page += 1;
+                    &p
+                });
                 let filename = std::format!(
                     "{0}-{1}.{2}",
-                    std::format!("{:0>3}", page_number_lookup.get(&page.pid).unwrap()),
+                    std::format!("{:0>5}", page_number),
                     page.pid,
                     ext
                 );
@@ -323,7 +353,7 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
                 if let Ok(mut file) =
                     std::fs::File::create_new(std::format!("{issue_pics_dir}/{filename}"))
                 {
-                    res.copy_to(&mut file).unwrap();
+                    res.copy_to(&mut file).to_result()?;
                 }
 
                 // If TOC entry exists for page ID, associate filename.
@@ -368,7 +398,9 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
 /// Downloads all issues within the selected period of the page at the provided URL.
 pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
     for issue_url in get_issue_urls_in_period(url)? {
-        download_issue(&issue_url, dest, options)?;
+        if let Err(x) = download_issue(&issue_url, dest, options) {
+            eprintln!("Error downloading issue {issue_url}: {}", x);
+        }
     }
     Ok(())
 }
@@ -376,7 +408,9 @@ pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> i
 /// Downloads all issues within the series of the issue at the provided URL.
 pub fn download_all(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
     for period_url in get_period_urls(url)? {
-        download_period(&period_url, dest, options)?;
+        if let Err(x) = download_period(&period_url, dest, options) {
+            eprintln!("Error downloading period {period_url}: {}", x);
+        }
     }
     Ok(())
 }
@@ -385,12 +419,12 @@ pub fn download_all(url: &str, dest: &str, options: &mut ScraperOptions) -> io::
 pub fn get_period_urls(url: &str) -> io::Result<Vec<String>> {
     let mut ret = Vec::new();
 
-    let mut res = reqwest::blocking::get(url).unwrap();
+    let mut res = reqwest::blocking::get(url).to_result()?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
     let doc = Html::parse_document(&body);
 
-    let selector = Selector::parse("#period_selector a").unwrap();
+    let selector = Selector::parse("#period_selector a").to_result()?;
     for element in doc.select(&selector) {
         if let Some(x) = element.attr("href") {
             ret.push(if x.trim() == "" {
@@ -408,12 +442,12 @@ pub fn get_period_urls(url: &str) -> io::Result<Vec<String>> {
 pub fn get_issue_urls_in_period(url: &str) -> io::Result<Vec<String>> {
     let mut ret = Vec::new();
 
-    let mut res = reqwest::blocking::get(url).unwrap();
+    let mut res = reqwest::blocking::get(url).to_result()?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
     let doc = Html::parse_document(&body);
 
-    let selector = Selector::parse("div.allissues_gallerycell a:first-child").unwrap();
+    let selector = Selector::parse("div.allissues_gallerycell a:first-child").to_result()?;
     for element in doc.select(&selector) {
         if let Some(x) = element.attr("href") {
             ret.push(x.to_string());
