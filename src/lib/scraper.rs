@@ -1,5 +1,6 @@
 use bitflags::bitflags;
-use scraper::{ElementRef, Html, Selector};
+use scraper::selectable::Selectable;
+use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
@@ -45,8 +46,8 @@ bitflags! {
     }
 }
 
-/// Metadata for single issue.
-pub struct IssueMetadata {
+/// Metadata for book or individual issue of magazine.
+pub struct BookMetadata {
     /// ID used to identify book resource
     pub id: String,
     /// Name of series/magazine issue belongs to
@@ -61,6 +62,8 @@ pub struct IssueMetadata {
     pub publisher: String,
     /// Description of publication
     pub description: String,
+    /// Type of book
+    pub book_type: BookType,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -74,63 +77,12 @@ struct IssueJson {
     page: Vec<PageJson>,
 }
 
-impl IssueMetadata {
-    fn new(id: &str) -> IssueMetadata {
-        IssueMetadata {
-            id: id.to_string(),
-            series_name: String::new(),
-            publish_date: String::new(),
-            volume: String::new(),
-            issn: String::new(),
-            publisher: String::new(),
-            description: String::new(),
-        }
-    }
-
-    /// Parses metadata from the provided HTML element.
-    fn parse(&mut self, element: &ElementRef) -> io::Result<()> {
-        let selector = Selector::parse(".booktitle").to_result()?;
-        for e in element.select(&selector) {
-            for child in e.text() {
-                self.series_name = child.to_string();
-                break;
-            }
-            break;
-        }
-        let selector = Selector::parse("#synopsistext").to_result()?;
-        for e in element.select(&selector) {
-            for child in e.text() {
-                self.description = child.to_string();
-                break;
-            }
-            break;
-        }
-        let selector = Selector::parse("#metadata").to_result()?;
-        for e in element.select(&selector) {
-            let mut i: u32 = 0;
-            for child in e.text() {
-                match i {
-                    0 => {
-                        self.publish_date = child.to_string();
-                    }
-                    2 => {
-                        self.volume = child.to_string();
-                    }
-                    3 => {
-                        self.issn = child.to_string();
-                    }
-                    4 => {
-                        self.publisher = child.to_string();
-                    }
-                    _ => (),
-                }
-                i += 1;
-            }
-            break;
-        }
-        Ok(())
-    }
+pub enum BookType {
+    Book,
+    Issue,
 }
+
+// Methods to convert between option/result types for error propogation.
 
 trait ToResult<T> {
     fn to_result(self) -> std::io::Result<T>;
@@ -145,6 +97,149 @@ impl<T, E: Display> ToResult<T> for std::result::Result<T, E> {
     }
 }
 
+trait ToResultErrorMessage<T> {
+    fn to_result(self, msg: &str) -> std::io::Result<T>;
+}
+
+impl<T> ToResultErrorMessage<T> for Option<T> {
+    fn to_result(self, msg: &str) -> std::io::Result<T> {
+        match self {
+            Some(x) => Ok(x),
+            None => Err(std::io::Error::new(io::ErrorKind::Other, msg)),
+        }
+    }
+}
+
+impl BookMetadata {
+    /// Gets the shortest title identifying this book.
+    pub fn get_title(&self) -> &str {
+        match self.book_type {
+            BookType::Issue => &self.publish_date,
+            BookType::Book => &self.series_name,
+        }
+    }
+
+    /// Gets the full title of this book, including the series name if it is a magazine issue.
+    pub fn get_full_title(&self) -> String {
+        match self.book_type {
+            BookType::Issue => std::format!("{} - {}", &self.series_name, &self.publish_date),
+            BookType::Book => self.series_name.to_string(),
+        }
+    }
+
+    pub fn from_page(id: &str, doc: &Html) -> io::Result<BookMetadata> {
+        let element = doc
+            .select(&Selector::parse("#summary_content_table").to_result()?)
+            .next()
+            .to_result("Metadata could not be parsed.")?;
+
+        let series_name = match element
+            .select(&Selector::parse(".booktitle").to_result()?)
+            .next()
+            .and_then(|e| e.text().next())
+        {
+            Some(x) => x.to_string(),
+            _ => String::new(),
+        };
+
+        let description = match element
+            .select(&Selector::parse("#synopsistext").to_result()?)
+            .next()
+            .and_then(|e| e.text().next())
+        {
+            Some(x) => x.to_string(),
+            _ => String::new(),
+        };
+
+        let mut publish_date = String::new();
+        let mut volume = String::new();
+        let mut issn = String::new();
+        let mut publisher = String::new();
+
+        if let Some(e) = element
+            .select(&Selector::parse("#metadata").to_result()?)
+            .next()
+        {
+            let mut i: u32 = 0;
+            for child in e.text() {
+                match i {
+                    0 => {
+                        publish_date = child.to_string();
+                    }
+                    2 => {
+                        volume = child.to_string();
+                    }
+                    3 => {
+                        issn = child.to_string();
+                    }
+                    4 => {
+                        publisher = child.to_string();
+                    }
+                    _ => (),
+                }
+                i += 1;
+            }
+        };
+
+        let book_type = match doc
+            .select(&Selector::parse("#preview-link span").to_result()?)
+            .next()
+            .and_then(|e| e.text().next())
+        {
+            Some(x) => {
+                if x.contains("magazine") {
+                    BookType::Issue
+                } else {
+                    BookType::Book
+                }
+            }
+            _ => BookType::Book,
+        };
+
+        Ok(BookMetadata {
+            id: id.to_string(),
+            series_name,
+            publish_date,
+            volume,
+            issn,
+            publisher,
+            description,
+            book_type,
+        })
+    }
+}
+
+/// Parse book ID from URL.
+fn id_from_url(url: &str) -> io::Result<String> {
+    // Note: old style URL: https://books.google.com/books?id=$book_id&$other_args...
+    //       new style URL: https://www.google.com/books/edition/$arbitrary_title/$book_id?$args...
+
+    let url_obj = Url::try_from(url).to_result()?;
+    const INVALID_URL: &str = "Invalid URL";
+    Ok(match url_obj.query_pairs().find(|x| x.0 == "id") {
+        Some(x) => x.1.to_string(),
+        None => url_obj
+            .path_segments()
+            .to_result(INVALID_URL)?
+            .last()
+            .to_result(INVALID_URL)?
+            .to_string(),
+    })
+}
+
+/// Generate basic old-style URL from book ID.
+fn url_from_id(id: &str) -> String {
+    std::format!("https://books.google.com/books?id={}", id)
+}
+
+/// Gets URL of JSON pertaiing to specified page.
+fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String {
+    std::format!(
+        "{}&lpg={first_page}&pg={page_id}&jscmd=click3",
+        url_from_id(id)
+    )
+}
+
 /// Downloads issue at the provided URL and performs any necessary format conversion.
 ///
 /// # Arguments
@@ -153,19 +248,18 @@ impl<T, E: Display> ToResult<T> for std::result::Result<T, E> {
 /// * `dest` - Filename of image to link to.
 /// * `options` - Various options for how to process downloaded images.
 pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
-    // TODO: get name of individual book not in series
-    // TODO: support ne wstyle URLs
+    // Note: Some books have download links in page: <a class="gbmt goog-menuitem-content" id="" href="$download_url">Download $ebook_format</a>
+    //       These links sometimes require captcha, so probably can't be automated.
 
-    // Parse ID from URL.
-    let mut url_obj = Url::try_from(url).to_result()?;
+    // TODO: ensure filename safety
+    // TODO: fix TOC for books without double row indices?
+    // TODO: scan for links to already downloadable books
+    // TODO: add file manifests so downloads can be resumed if interrupted
+    // TODO: progress bar
+    // TODO: concurrent downloads
 
-    let mut id = String::new();
-    for (key, val) in url_obj.query_pairs() {
-        if key == "id" {
-            id = val.to_string();
-            break;
-        }
-    }
+    let id = id_from_url(url)?;
+    let url = url_from_id(&id);
 
     if options.already_downloaded.contains(&id) {
         println!("Skipping already downloaded book: {id}...");
@@ -179,94 +273,71 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
     let body = res.text().to_result()?;
     let doc = Html::parse_document(&body);
 
-    // Parse issue metadata from page.
-    let mut issue_meta = IssueMetadata::new(&id);
-    let selector = Selector::parse("#summary_content_table").to_result()?;
-    for element in doc.select(&selector) {
-        issue_meta.parse(&element)?;
-        break;
-    }
+    // Parse metadata from page.
+    let meta = BookMetadata::from_page(&id, &doc)?;
 
-    // Derive paths and create any missing directories.
-    let issue_combined_id = std::format!("{0} [{1}]", issue_meta.publish_date, issue_meta.id);
-    let series_dir = std::format!("{dest}/{0}", issue_meta.series_name);
-    let issue_pics_dir = std::format!("{series_dir}/{issue_combined_id}");
-
-    println!("Found: {0} - {issue_combined_id}", issue_meta.series_name);
-
-    let exists_already = std::path::Path::new(&issue_pics_dir).exists();
-    if !exists_already {
-        std::fs::create_dir_all(&issue_pics_dir)?
+    // Derive paths.
+    let issue_combined_id = std::format!("{0} [{1}]", meta.get_full_title(), meta.id);
+    let dest = match meta.book_type {
+        BookType::Issue => std::format!("{dest}/{0}", meta.series_name),
+        BookType::Book => dest.to_string(),
     };
+    let issue_pics_dir = std::format!("{dest}/{issue_combined_id}");
+    let filename_pdf = std::format!("{dest}/{issue_combined_id}.pdf");
+    let filename_cbz = std::format!("{dest}/{issue_combined_id}.cbz");
 
-    // Check if any needed formats already exist on disk.
+    println!("Found: {}", meta.get_full_title());
+
+    // Check if image directory and any needed formats already exist on disk.
+
     let mut formats = options.formats.clone();
-    let filename_pdf = std::format!("{series_dir}/{issue_combined_id}.pdf");
-    if std::path::Path::new(&filename_pdf).exists() {
-        formats.remove(FormatFlags::Pdf)
-    }
-    let filename_cbz = std::format!("{series_dir}/{issue_combined_id}.cbz");
-    if std::path::Path::new(&filename_cbz).exists() {
-        formats.remove(FormatFlags::Cbz)
-    }
+    let exists_already = std::path::Path::new(&issue_pics_dir).exists();
 
-    if formats == FormatFlags::None && (exists_already || !options.keep_images) {
-        println!("Already downloaded. Skipping...");
-        return Ok(());
+    if exists_already {
+        if std::path::Path::new(&filename_pdf).exists() {
+            formats.remove(FormatFlags::Pdf)
+        }
+        if std::path::Path::new(&filename_cbz).exists() {
+            formats.remove(FormatFlags::Cbz)
+        }
+
+        if formats == FormatFlags::None && (exists_already || !options.keep_images) {
+            println!("Already downloaded. Skipping...");
+            return Ok(());
+        }
+    } else {
+        // Create directory for saving images to.
+        std::fs::create_dir_all(&issue_pics_dir)?
     }
 
     // Parse TOC info.
     let mut toc_page_title_lookup = HashMap::<String, String>::new();
-    let selector = Selector::parse("#toc tr").to_result()?;
-    let mut i = 0;
-    let mut bookmark_text = String::new();
-    let mut bookmark_page_id = String::new();
+    let selector = Selector::parse("div.toc_entry").to_result()?;
     for element in doc.select(&selector) {
-        // Bookmarks encompass two <td>s, so this will alternate between title and description/keywords
-        if i % 2 == 0 {
-            // Title
-            for span in element.select(&Selector::parse("span").to_result()?) {
-                for str in span.text() {
-                    bookmark_text += str;
-                }
-                break;
+        // Title is the text of the element.
+        let mut bookmark_name = String::new();
+        element.text().for_each(|x| bookmark_name += x);
+
+        println!("{}", element.inner_html());
+
+        // Page ID is in link URL
+        if let Some(bookmark_url) = element
+            .select(&Selector::parse("a").to_result()?)
+            .next()
+            .and_then(|x| x.attr("href"))
+        {
+            if let Some(x) = Url::try_from(bookmark_url)
+                .to_result()?
+                .query_pairs()
+                .find(|x| x.0 == "pg")
+            {
+                toc_page_title_lookup.insert(x.1.to_string(), bookmark_name);
             }
-
-            for link in element.select(&Selector::parse("a").to_result()?) {
-                if let Some(href) = link.attr("href") {
-                    let link_url_obj = Url::try_from(href).to_result()?;
-                    for (key, val) in link_url_obj.query_pairs() {
-                        if key == "pg" {
-                            bookmark_page_id = val.to_string();
-                            break;
-                        }
-                    }
-                }
-                break;
-            }
-        } else {
-            // Keywords
-
-            // Note: Ignoring this as it seems to be just keywords that make the bookmark overly long if included.
-            // let mut bookmark_description = String::new();
-            // for str in element.text() {
-            //     bookmark_description += str;
-            // }
-            // while bookmark_description.contains("  ") {
-            //     bookmark_description = bookmark_description.replace("  ", " ");
-            // }
-
-            toc_page_title_lookup.insert(bookmark_page_id, bookmark_text);
-            bookmark_page_id = String::new();
-            bookmark_text = String::new();
         }
-        i += 1;
     }
 
     // Fetch JSON to get info about all pages.
-    let json_query_str = std::format!("id={id}&lpg=1&pg=1&jscmd=click3");
-    url_obj.set_query(Some(&json_query_str));
-    let mut res = reqwest::blocking::get(url_obj.to_string()).to_result()?;
+    let mut res = reqwest::blocking::get(get_json_url(&id, "1", "1")).to_result()?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
     let issue: IssueJson = serde_json::from_str(&body).to_result()?;
@@ -298,9 +369,8 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
         }
 
         // Fetch JSON for page.
-        let json_query_str = std::format!("id={id}&lpg={first_page}&pg={page_id}&jscmd=click3");
-        url_obj.set_query(Some(&json_query_str));
-        let mut res = reqwest::blocking::get(url_obj.to_string()).to_result()?;
+        let mut res =
+            reqwest::blocking::get(get_json_url(&id, &first_page, &page_id)).to_result()?;
         let mut body = String::new();
         res.read_to_string(&mut body)?;
         let issue: IssueJson = serde_json::from_str(&body).to_result()?;
@@ -355,6 +425,8 @@ pub fn download_issue(url: &str, dest: &str, options: &mut ScraperOptions) -> io
                 {
                     res.copy_to(&mut file).to_result()?;
                 }
+
+                // TODO: retries and/or error logging.
 
                 // If TOC entry exists for page ID, associate filename.
                 if let Some(title) = toc_page_title_lookup.get(&page.pid) {
