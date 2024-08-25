@@ -86,6 +86,7 @@ impl Args {
                 }
                 set
             },
+            skip_download: false,
         }
     }
 }
@@ -94,7 +95,9 @@ fn main() {
     let args = Args::parse();
     let mut options = args.to_options();
     let result = match args.download_mode {
-        DownloadMode::Single => scraper::download_issue(&args.url, &args.target_dir, &mut options),
+        DownloadMode::Single => {
+            scraper::download_issue(&args.url, &args.target_dir, &mut options).and_then(|_| Ok(()))
+        }
         DownloadMode::Period => scraper::download_period(&args.url, &args.target_dir, &mut options),
         DownloadMode::Full => scraper::download_all(&args.url, &args.target_dir, &mut options),
     };
