@@ -9,8 +9,8 @@ use std::io::{self};
 use std::io::{Read, Write};
 use url::Url;
 
-use crate::cbz::create_cbz;
-use crate::pdf::{create_pdf_with_toc, TableOfContents};
+use crate::writer::cbz::create_cbz;
+use crate::writer::pdf::{create_pdf_with_toc, TableOfContents};
 
 /// Scrape options.
 pub struct ScraperOptions {
@@ -67,7 +67,7 @@ pub struct BookMetadata {
     /// Description of publication
     pub description: String,
     /// Type of book
-    pub book_type: BookType,
+    pub book_type: ContentType,
     /// Author of the book
     pub author: String,
     /// Number of pages
@@ -90,9 +90,10 @@ struct IssueJson {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum BookType {
+pub enum ContentType {
     Book,
-    Issue,
+    Magazine,
+    Newspaper,
 }
 
 // Methods to convert between option/result types for error propogation.
@@ -127,16 +128,18 @@ impl BookMetadata {
     /// Gets the shortest title identifying this book.
     pub fn get_title(&self) -> &str {
         match self.book_type {
-            BookType::Issue => &self.publish_date,
-            BookType::Book => &self.series_name,
+            ContentType::Magazine | ContentType::Newspaper => &self.publish_date,
+            ContentType::Book => &self.series_name,
         }
     }
 
     /// Gets the full title of this book, including the series name if it is a magazine issue.
     pub fn get_full_title(&self) -> String {
         match self.book_type {
-            BookType::Issue => std::format!("{} - {}", &self.series_name, &self.publish_date),
-            BookType::Book => self.series_name.to_string(),
+            ContentType::Magazine | ContentType::Newspaper => {
+                std::format!("{} - {}", &self.series_name, &self.publish_date)
+            }
+            ContentType::Book => self.series_name.to_string(),
         }
     }
 
@@ -186,6 +189,7 @@ impl BookMetadata {
             .select(&Selector::parse("#metadata").to_result()?)
             .next()
         {
+            // TODO: improve parsing here for when fields are missing
             let mut i: u32 = 0;
             for child in e.text() {
                 match i {
@@ -253,12 +257,14 @@ impl BookMetadata {
         {
             Some(x) => {
                 if x.contains("magazine") {
-                    BookType::Issue
+                    ContentType::Magazine
+                } else if x.contains("newspaper") {
+                    ContentType::Newspaper
                 } else {
-                    BookType::Book
+                    ContentType::Book
                 }
             }
-            _ => BookType::Book,
+            _ => ContentType::Book,
         };
 
         Ok(BookMetadata {
@@ -358,8 +364,10 @@ pub fn download_issue(
     // Derive paths.
     let issue_combined_id = std::format!("{0} [{1}]", meta.get_full_title(), meta.id);
     let dest = match meta.book_type {
-        BookType::Issue => std::format!("{dest}/{0}", meta.series_name),
-        BookType::Book => dest.to_string(),
+        ContentType::Magazine | ContentType::Newspaper => {
+            std::format!("{dest}/{0}", meta.series_name)
+        }
+        ContentType::Book => dest.to_string(),
     };
     let issue_pics_dir = std::format!("{dest}/{issue_combined_id}");
     let filename_pdf = std::format!("{dest}/{issue_combined_id}.pdf");
@@ -667,7 +675,7 @@ mod tests {
             issn: String::from(""),
             publisher: String::from("Dana Estes & Company, 1892"),
             description,
-            book_type: BookType::Book,
+            book_type: ContentType::Book,
             author: String::from("Herman Melville"),
             length: 545,
             date_digitized: String::from("Mar 20, 2008"),
@@ -700,7 +708,7 @@ mod tests {
             issn: String::from("ISSN 0024-3019"),
             publisher: String::from("Published by Time Inc"),
             description,
-            book_type: BookType::Issue,
+            book_type: ContentType::Magazine,
             author: String::from(""),
             length: 94,
             date_digitized: String::from(""),
