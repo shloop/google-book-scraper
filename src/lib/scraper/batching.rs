@@ -47,6 +47,10 @@ pub fn get_period_urls(url: &str) -> io::Result<Vec<String>> {
         }
     }
 
+    if ret.is_empty() {
+        ret.push(url.to_string());
+    }
+
     Ok(ret)
 }
 

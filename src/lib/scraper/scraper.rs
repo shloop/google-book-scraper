@@ -295,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn magazine_metadata_parsing_magazine() {
+    fn metadata_parsing_magazine() {
         let id = String::from("CFEEAAAAMBAJ");
         let url = std::format!("https://books.google.com/books?id={id}");
         let dest = ".";
