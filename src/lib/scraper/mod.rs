@@ -1,5 +1,5 @@
 pub mod batching;
-pub mod helpers;
+mod helpers;
 pub mod scraper;
 pub mod types;
 

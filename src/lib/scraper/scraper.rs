@@ -1,3 +1,4 @@
+use image::GenericImage;
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -32,7 +33,7 @@ pub fn download_issue(
     // TODO: scan for links to already downloadable books
     // TODO: add file manifests so downloads can be resumed if interrupted
     // TODO: progress bar
-    // TODO: concurrent downloads
+    // TODO: concurrent downloads? (might be a bad idea since google may flag it as unusual behavior)
 
     let id = id_from_url(url)?;
     let url = url_from_id(&id);
@@ -56,7 +57,7 @@ pub fn download_issue(
     let issue_combined_id = std::format!("{0} [{1}]", meta.get_full_title(), meta.id);
     let dest = match meta.book_type {
         ContentType::Magazine | ContentType::Newspaper => {
-            std::format!("{dest}/{0}", meta.series_name)
+            std::format!("{dest}/{0}", meta.title)
         }
         ContentType::Book => dest.to_string(),
     };
@@ -166,64 +167,153 @@ pub fn download_issue(
 
         // Download images linked in JSON.
         // Note: JSON will contain an entry for every page in book. Requested page should have accompanying source URL, and adjacent pages may as well.
-        for page in issue.page {
-            if let Some(src) = page.src {
-                // Skip if already downloaded.
-                if pages_downloaded.contains(&page.pid) {
+        for page in &issue.page {
+            // Skip if already downloaded.
+            if let None = &page.src {
+                continue;
+            }
+            // Skip if no download link.
+            else if pages_downloaded.contains(&page.pid) {
+                continue;
+            }
+
+            let mut standard_download = true;
+            let mut filename = String::new();
+
+            let mut p = 0;
+            let page_number = page_number_lookup.get(&page.pid).unwrap_or_else(|| {
+                // In unlikely case where page ID was not included in original JSON, append to end of known pages.
+                p = i_page;
+                i_page += 1;
+                &p
+            });
+
+            if let ContentType::Newspaper = meta.book_type {
+                // For newspapers, only proceed if this is the requested page or high res info is present.
+                if let Some(npage_info) = page
+                    .additional_info
+                    .as_ref()
+                    .and_then(|x| x.newspaper_json_page_info.as_ref())
+                {
+                    // Segmented download
+                    standard_download = false;
+
+                    let size_info = npage_info
+                        .tile_res
+                        .last()
+                        .to_result("Failed to parse newspaper size info")?;
+
+                    let mut any_png = false;
+                    let mut canvas = image::DynamicImage::new(
+                        size_info.width.into(),
+                        size_info.height.into(),
+                        image::ColorType::Rgb8,
+                    );
+
+                    // Images are segmented into 256x256 chunks. Segments at bottom and right edges of page may be smaller.
+                    const SEGMENT_MAX_W: u32 = 256;
+                    const SEGMENT_MAX_H: u32 = 256;
+
+                    // Segments are grouped into blocks of up to 3x3 for ordering.
+                    const SEGMENT_GROUP_MAX_W: u32 = SEGMENT_MAX_W * 3;
+                    const SEGMENT_GROUP_MAX_H: u32 = SEGMENT_MAX_H * 3;
+
+                    // Both the groups and the segments increment left to right, top to bottom, like so:
+                    //  -----------------------------
+                    // | 00 01 02 | 09 10 11 | 18 19 |
+                    // | 03 04 05 | 12 13 14 | 20 21 |
+                    // | 06 07 08 | 15 16 17 | 22 23 |
+                    // | --------- ---------- ------ |
+                    // | 24 25 26 | 30 31 32 | 36 37 |
+                    // | 27 28 29 | 33 34 35 | 38 39 |
+                    //  -----------------------------
+
+                    let coord_x = npage_info.page_scanjob_coordinates.x;
+                    let coord_y = npage_info.page_scanjob_coordinates.y;
+                    let zoom = size_info.zoom;
+
+                    let src_url = Url::try_from(page.src.as_ref().unwrap().as_str()).to_result()?;
+                    let sig = src_url
+                        .query_pairs()
+                        .find(|x| x.0 == "sig")
+                        .to_result("msg")?
+                        .1
+                        .to_string();
+
+                    let mut i = 0;
+                    let mut y_group = 0;
+                    while y_group < size_info.height {
+                        let mut x_group = 0;
+                        while x_group < size_info.width {
+                            let mut y_segment = y_group;
+                            while (y_segment < size_info.height)
+                                && (y_segment < (y_group + SEGMENT_GROUP_MAX_H))
+                            {
+                                let mut x_segment = x_group;
+                                while (x_segment < size_info.width)
+                                    && (x_segment < (x_group + SEGMENT_GROUP_MAX_W))
+                                {
+                                    // TODO: retries and/or error logging.
+
+                                    // Fetch image segment and determine format.
+                                    let mut res =
+                                        reqwest::blocking::get(std::format!("https://books.google.com/books/content?id={id}&pg={coord_x},{coord_y}&img=1&zoom={zoom}&hl=en&sig={sig}&tid={i}")).to_result()?;
+                                    let ext = get_image_ext(&res)?;
+                                    any_png |= ext == "png";
+
+                                    // Copy segment to page image.
+                                    let mut buf = vec![];
+                                    _ = res.read_to_end(&mut buf).to_result()?;
+                                    let other = image::load_from_memory(&buf).to_result()?;
+                                    canvas.copy_from(&other, x_segment, y_segment).to_result()?;
+
+                                    i += 1;
+
+                                    x_segment += SEGMENT_MAX_W;
+                                }
+                                y_segment += SEGMENT_MAX_H;
+                            }
+                            x_group += SEGMENT_GROUP_MAX_W;
+                        }
+                        y_group += SEGMENT_GROUP_MAX_H;
+                    }
+
+                    filename = generate_image_filename(
+                        page_number,
+                        &page.pid,
+                        if any_png { "png" } else { "jpg" },
+                    );
+                    canvas
+                        .save(std::format!("{issue_pics_dir}/{filename}"))
+                        .to_result()?;
+                } else if page.pid != page_id {
                     continue;
                 }
+            }
 
+            if standard_download {
                 // TODO: retries and/or error logging.
 
                 // Fetch image at highest available resolution.
-                let mut res = reqwest::blocking::get(src + "&w=10000").to_result()?;
-
-                // Determine image type from HTTP result.
-                let mut ext = "jpg";
-                for (name, value) in res.headers() {
-                    if name.as_str() == "content-type" {
-                        ext = value.to_str().to_result()?;
-                        let mut start = 0;
-                        if let Some(x) = ext.find("/") {
-                            start = x + 1
-                        }
-                        ext = &ext[start..];
-                        if ext == "jpeg" {
-                            ext = "jpg"
-                        }
-                        break;
-                    }
-                }
-
-                // Generate filename based on page order, page ID, and image type.
-                let mut p = 0;
-                let page_number = page_number_lookup.get(&page.pid).unwrap_or_else(|| {
-                    // In unlikely case where page ID was not included in original JSON, append to end of known pages.
-                    p = i_page;
-                    i_page += 1;
-                    &p
-                });
-                let filename = std::format!(
-                    "{0}-{1}.{2}",
-                    std::format!("{:0>5}", page_number),
-                    page.pid,
-                    ext
-                );
+                let mut res =
+                    reqwest::blocking::get(std::format!("{}&w=10000", page.src.as_ref().unwrap()))
+                        .to_result()?;
 
                 // Write to disk.
+                filename = generate_image_filename(page_number, &page.pid, &get_image_ext(&res)?);
                 if let Ok(mut file) =
                     std::fs::File::create_new(std::format!("{issue_pics_dir}/{filename}"))
                 {
                     res.copy_to(&mut file).to_result()?;
                 }
-
-                // If TOC entry exists for page ID, associate filename.
-                if let Some(title) = toc_page_title_lookup.get(&page.pid) {
-                    toc.add_page(title, &filename);
-                }
-
-                pages_downloaded.insert(page.pid);
             }
+
+            // If TOC entry exists for page ID, associate filename.
+            if let Some(title) = toc_page_title_lookup.get(&page.pid) {
+                toc.add_page(title, &filename);
+            }
+
+            pages_downloaded.insert(page.pid.clone());
         }
     }
 
@@ -259,71 +349,110 @@ pub fn download_issue(
 mod tests {
     use super::*;
 
-    #[test]
-    fn metadata_parsing_book() {
-        let id = String::from("XV8XAAAAYAAJ");
-        let url = std::format!("https://books.google.com/books?id={id}");
-        let dest = ".";
-        let mut options = ScraperOptions::default();
-        options.skip_download = true;
+    /// Time to wait in between requests to hopefuly not get flagged as unusual behavior.
+    const WAIT_TIME: u64 = 2000;
 
-        let mut description = String::new();
-        description.push_str("A literary classic that wasn't recognized for its merits until decades after its publication, Herman Melville's Moby-Dick");
-        description.push_str(" tells the tale of a whaling ship and its crew, who are carried progressively further out to sea by the fiery Captain Ahab.");
-        description.push_str(" Obsessed with killing the massive whale, which had previously bitten off Ahab's leg, the seasoned seafarer steers his ship");
-        description.push_str(" to confront the creature, while the rest of the shipmates, including the young narrator, Ishmael, and the harpoon expert,");
-        description.push_str(" Queequeg, must contend with their increasingly dire journey. The book invariably lands on any short list of the greatest American novels.");
-
-        let expected = BookMetadata {
-            id,
-            series_name: String::from("Moby Dick"),
-            publish_date: String::from(""),
-            volume: String::from(""),
-            issn: String::from(""),
-            publisher: String::from("Dana Estes & Company, 1892"),
-            description,
-            book_type: ContentType::Book,
-            author: String::from("Herman Melville"),
-            length: 545,
-            date_digitized: String::from("Mar 20, 2008"),
-            orig_from: String::from("Harvard University"),
-        };
-
-        let metadata = download_issue(&url, dest, &mut options);
-
-        assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
+    fn pause_between_requests() {
+        std::thread::sleep(std::time::Duration::from_millis(WAIT_TIME));
     }
 
     #[test]
-    fn metadata_parsing_magazine() {
-        let id = String::from("CFEEAAAAMBAJ");
-        let url = std::format!("https://books.google.com/books?id={id}");
-        let dest = ".";
-        let mut options = ScraperOptions::default();
-        options.skip_download = true;
+    fn metadata_parsing() {
+        // Book
+        {
+            let id = String::from("XV8XAAAAYAAJ");
+            let url = std::format!("https://books.google.com/books?id={id}");
+            let dest = ".";
+            let mut options = ScraperOptions::default();
+            options.skip_download = true;
 
-        let mut description = String::new();
-        description.push_str("LIFE Magazine is the treasured photographic magazine that chronicled the 20th Century. It now lives on at LIFE.com,");
-        description.push_str(" the largest, most amazing collection of professional photography on the internet. Users can browse, search and view");
-        description.push_str(" photos of today’s people and events. They have free access to share, print and post images for personal use.");
+            let mut description = String::new();
+            description.push_str("A literary classic that wasn't recognized for its merits until decades after its publication, Herman Melville's Moby-Dick");
+            description.push_str(" tells the tale of a whaling ship and its crew, who are carried progressively further out to sea by the fiery Captain Ahab.");
+            description.push_str(" Obsessed with killing the massive whale, which had previously bitten off Ahab's leg, the seasoned seafarer steers his ship");
+            description.push_str(" to confront the creature, while the rest of the shipmates, including the young narrator, Ishmael, and the harpoon expert,");
+            description.push_str(" Queequeg, must contend with their increasingly dire journey. The book invariably lands on any short list of the greatest American novels.");
 
-        let expected = BookMetadata {
-            id,
-            series_name: String::from("LIFE"),
-            publish_date: String::from("Oct 3, 1969"),
-            volume: String::from("Vol. 67, No. 14"),
-            issn: String::from("ISSN 0024-3019"),
-            publisher: String::from("Published by Time Inc"),
-            description,
-            book_type: ContentType::Magazine,
-            author: String::from(""),
-            length: 94,
-            date_digitized: String::from(""),
-            orig_from: String::from(""),
-        };
+            let expected = BookMetadata {
+                id,
+                title: String::from("Moby Dick"),
+                publish_date: String::from(""),
+                volume: String::from(""),
+                issn: String::from(""),
+                publisher: String::from("Dana Estes & Company, 1892"),
+                description,
+                book_type: ContentType::Book,
+                author: String::from("Herman Melville"),
+                length: 545,
+                date_digitized: String::from("Mar 20, 2008"),
+                orig_from: String::from("Harvard University"),
+            };
 
-        let metadata = download_issue(&url, dest, &mut options);
+            let metadata = download_issue(&url, dest, &mut options);
+            assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
+        }
 
-        assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
+        pause_between_requests();
+
+        // Magazine
+        {
+            let id = String::from("CFEEAAAAMBAJ");
+            let url = std::format!("https://books.google.com/books?id={id}");
+            let dest = ".";
+            let mut options = ScraperOptions::default();
+            options.skip_download = true;
+
+            let mut description = String::new();
+            description.push_str("LIFE Magazine is the treasured photographic magazine that chronicled the 20th Century. It now lives on at LIFE.com,");
+            description.push_str(" the largest, most amazing collection of professional photography on the internet. Users can browse, search and view");
+            description.push_str(" photos of today’s people and events. They have free access to share, print and post images for personal use.");
+
+            let expected = BookMetadata {
+                id,
+                title: String::from("LIFE"),
+                publish_date: String::from("Oct 3, 1969"),
+                volume: String::from("Vol. 67, No. 14"),
+                issn: String::from("0024-3019"),
+                publisher: String::from("Time Inc"),
+                description,
+                book_type: ContentType::Magazine,
+                author: String::from(""),
+                length: 94,
+                date_digitized: String::from(""),
+                orig_from: String::from(""),
+            };
+
+            let metadata = download_issue(&url, dest, &mut options);
+            assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
+        }
+
+        pause_between_requests();
+
+        //Newspaper
+        {
+            let id = String::from("W4clAAAAIBAJ");
+            let url = std::format!("https://books.google.com/books?id={id}");
+            let dest = ".";
+            let mut options = ScraperOptions::default();
+            options.skip_download = true;
+
+            let expected = BookMetadata {
+                id,
+                title: String::from("The Afro American"),
+                publish_date: String::from("Jan 4, 1992"),
+                volume: String::from(""),
+                issn: String::from(""),
+                publisher: String::from("The Afro American"),
+                description: String::from(""),
+                book_type: ContentType::Newspaper,
+                author: String::from(""),
+                length: 0,
+                date_digitized: String::from(""),
+                orig_from: String::from(""),
+            };
+
+            let metadata = download_issue(&url, dest, &mut options);
+            assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
+        }
     }
 }

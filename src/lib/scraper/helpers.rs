@@ -3,7 +3,7 @@ use std::io::{self};
 use url::Url;
 
 /// Parse book ID from URL.
-pub fn id_from_url(url: &str) -> io::Result<String> {
+pub(crate) fn id_from_url(url: &str) -> io::Result<String> {
     // Note: old style URL: https://books.google.com/books?id=$book_id&$other_args...
     //       new style URL: https://www.google.com/books/edition/$arbitrary_title/$book_id?$args...
 
@@ -21,12 +21,12 @@ pub fn id_from_url(url: &str) -> io::Result<String> {
 }
 
 /// Generate basic old-style URL from book ID.
-pub fn url_from_id(id: &str) -> String {
+pub(crate) fn url_from_id(id: &str) -> String {
     std::format!("https://books.google.com/books?id={id}")
 }
 
 /// Gets URL of JSON pertaiing to specified page.
-pub fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String {
+pub(crate) fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String {
     std::format!(
         "{}&lpg={first_page}&pg={page_id}&jscmd=click3",
         url_from_id(id)
@@ -35,7 +35,7 @@ pub fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String {
 
 // Methods to convert between option/result types for error propogation.
 
-pub trait ToResult<T> {
+pub(crate) trait ToResult<T> {
     ///
     fn to_result(self) -> std::io::Result<T>;
 }
@@ -49,8 +49,8 @@ impl<T, E: Display> ToResult<T> for std::result::Result<T, E> {
     }
 }
 
-pub trait ToResultErrorMessage<T> {
-    /// 
+pub(crate) trait ToResultErrorMessage<T> {
+    ///
     fn to_result(self, msg: &str) -> std::io::Result<T>;
 }
 
@@ -61,6 +61,36 @@ impl<T> ToResultErrorMessage<T> for Option<T> {
             None => Err(std::io::Error::new(io::ErrorKind::Other, msg)),
         }
     }
+}
+
+/// Generate filename for image.
+pub(crate) fn generate_image_filename(page_number: &usize, page_id: &str, ext: &str) -> String {
+    std::format!(
+        "{0}-{1}.{2}",
+        std::format!("{:0>5}", page_number),
+        page_id,
+        ext
+    )
+}
+
+/// Determine image extension by the content header.
+pub(crate) fn get_image_ext(res: &reqwest::blocking::Response) -> io::Result<String> {
+    let mut ext = "jpg";
+    for (name, value) in res.headers() {
+        if name.as_str() == "content-type" {
+            ext = value.to_str().to_result()?;
+            let mut start = 0;
+            if let Some(x) = ext.find("/") {
+                start = x + 1
+            }
+            ext = &ext[start..];
+            if ext == "jpeg" {
+                ext = "jpg"
+            }
+            break;
+        }
+    }
+    Ok(ext.to_string())
 }
 
 #[cfg(test)]

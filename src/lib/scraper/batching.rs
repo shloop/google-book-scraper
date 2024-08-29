@@ -40,6 +40,7 @@ pub fn get_period_urls(url: &str) -> io::Result<Vec<String>> {
     for element in doc.select(&selector) {
         if let Some(x) = element.attr("href") {
             ret.push(if x.trim() == "" {
+                // Empty string used for current period.
                 url.to_string()
             } else {
                 x.to_string()
@@ -47,6 +48,7 @@ pub fn get_period_urls(url: &str) -> io::Result<Vec<String>> {
         }
     }
 
+    // For periodicals with few available issues there might not be any periods, so return current page as period.
     if ret.is_empty() {
         ret.push(url.to_string());
     }

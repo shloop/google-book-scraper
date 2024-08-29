@@ -1,11 +1,13 @@
 use bitflags::bitflags;
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::{self};
 
 use super::helpers::*;
+
+pub use json_api::IssueJson;
+pub use json_api::PageJson;
 
 /// Scrape options.
 pub struct ScraperOptions {
@@ -49,8 +51,8 @@ bitflags! {
 pub struct BookMetadata {
     /// ID used to identify book resource
     pub id: String,
-    /// Name of series/magazine issue belongs to
-    pub series_name: String,
+    /// Title of book or periodical
+    pub title: String,
     /// Date issue was published
     pub publish_date: String,
     /// Volume of issue
@@ -73,15 +75,54 @@ pub struct BookMetadata {
     pub orig_from: String,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct PageJson {
-    pub pid: String,
-    pub src: Option<String>,
-}
+/// Data types deserializing JSON API calls to get book info.
+mod json_api {
+    use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-pub struct IssueJson {
-    pub page: Vec<PageJson>,
+    /// Result of API call to get metadata about a book or issue.
+    #[derive(Serialize, Deserialize)]
+    pub struct IssueJson {
+        pub page: Vec<PageJson>,
+    }
+
+    /// Metadata pertaining to specific page.
+    #[derive(Serialize, Deserialize)]
+    pub struct PageJson {
+        pub pid: String,
+        pub src: Option<String>,
+        pub additional_info: Option<PageAdditionalInfo>,
+    }
+
+    /// Additional metadata for specific page.
+    #[derive(Serialize, Deserialize)]
+    pub struct PageAdditionalInfo {
+        #[serde(rename(deserialize = "[NewspaperJSONPageInfo]"))]
+        pub newspaper_json_page_info: Option<NewspaperJsonPageInfo>,
+    }
+
+    /// Additional metadata for newspaper pages.
+    #[derive(Serialize, Deserialize)]
+    pub struct NewspaperJsonPageInfo {
+        #[serde(rename(deserialize = "tileres"))]
+        pub tile_res: Vec<TileRes>,
+        pub page_scanjob_coordinates: Coordinates,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct TileRes {
+        #[serde(rename(deserialize = "h"))]
+        pub height: u32,
+        #[serde(rename(deserialize = "w"))]
+        pub width: u32,
+        #[serde(rename(deserialize = "z"))]
+        pub zoom: u32,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Coordinates {
+        pub x: u32,
+        pub y: u32,
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -98,11 +139,23 @@ pub enum DownloadStatus {
 }
 
 impl BookMetadata {
+    const SUFFIX_PAGES: &'static str = " pages";
+    const PREFIX_PUBLISHER: &'static str = "Published by ";
+    const PREFIX_ISSN: &'static str = "ISSN ";
+
+    const LABEL_TITLE: &'static str = "Title";
+    const LABEL_AUTHOR: &'static str = "Author";
+    const LABEL_PUBLISHER: &'static str = "Publisher";
+    const LABEL_ORIG_FROM: &'static str = "Original from";
+    const LABEL_DIGITIZED: &'static str = "Digitized";
+    const LABEL_LENGTH: &'static str = "Length";
+    const LABEL_ISBN: &'static str = "ISBN";
+
     /// Gets the shortest title identifying this book.
     pub fn get_title(&self) -> &str {
         match self.book_type {
             ContentType::Magazine | ContentType::Newspaper => &self.publish_date,
-            ContentType::Book => &self.series_name,
+            ContentType::Book => &self.title,
         }
     }
 
@@ -110,18 +163,20 @@ impl BookMetadata {
     pub fn get_full_title(&self) -> String {
         match self.book_type {
             ContentType::Magazine | ContentType::Newspaper => {
-                std::format!("{} - {}", &self.series_name, &self.publish_date)
+                std::format!("{} - {}", &self.title, &self.publish_date)
             }
-            ContentType::Book => self.series_name.to_string(),
+            ContentType::Book => self.title.to_string(),
         }
     }
 
     fn parse_length(text: &str) -> io::Result<u32> {
-        Ok(text
-            .replace(" pages", "")
-            .trim()
+        Ok(Self::remove_and_extract(text, Self::SUFFIX_PAGES)
             .parse::<u32>()
             .to_result()?)
+    }
+
+    fn remove_and_extract(source: &str, to_remove: &str) -> String {
+        source.replace(to_remove, "").trim().to_string()
     }
 
     /// Extracts metadata from webpage.
@@ -131,7 +186,7 @@ impl BookMetadata {
             .next()
             .to_result("Metadata could not be parsed.")?;
 
-        let series_name = match element
+        let mut title = match element
             .select(&Selector::parse(".booktitle").to_result()?)
             .next()
             .and_then(|e| e.text().next())
@@ -157,36 +212,32 @@ impl BookMetadata {
         let mut length = 0;
         let mut date_digitized = String::new();
         let mut orig_from = String::new();
+        let mut isbn = Vec::<String>::new();
 
+        // Main metadata area
         if let Some(e) = element
             .select(&Selector::parse("#metadata").to_result()?)
             .next()
         {
-            // TODO: improve parsing here for when fields are missing
             let mut i: u32 = 0;
             for child in e.text() {
-                match i {
-                    0 => {
-                        publish_date = child.to_string();
-                    }
-                    1 => {
-                        length = Self::parse_length(child)?;
-                    }
-                    2 => {
-                        volume = child.to_string();
-                    }
-                    3 => {
-                        issn = child.to_string();
-                    }
-                    4 => {
-                        publisher = child.to_string();
-                    }
-                    _ => (),
+                if i == 0 {
+                    publish_date = child.to_string();
+                } else if child.starts_with(Self::PREFIX_PUBLISHER) {
+                    publisher = Self::remove_and_extract(child, Self::PREFIX_PUBLISHER);
+                } else if child.starts_with(Self::PREFIX_ISSN) {
+                    issn = Self::remove_and_extract(child, Self::PREFIX_ISSN);
+                } else if child.ends_with(Self::SUFFIX_PAGES) {
+                    length = Self::parse_length(child)?;
+                } else {
+                    volume = child.to_string();
                 }
+
                 i += 1;
             }
         };
 
+        // Bibliography area - used specifically by books?
         for tr in doc.select(&Selector::parse(".metadata_row").to_result()?) {
             if let Some(label) = tr
                 .select(&Selector::parse(".metadata_label").to_result()?)
@@ -199,22 +250,27 @@ impl BookMetadata {
                     .and_then(|e| e.text().next())
                 {
                     match label {
-                        // "Title" => {
-                        //     series_name = value.to_string();
-                        // }
-                        "Author" => {
+                        Self::LABEL_TITLE => {
+                            title = value.to_string();
+                        }
+                        Self::LABEL_AUTHOR => {
                             author = value.to_string();
                         }
-                        "Publisher" => {
+                        Self::LABEL_PUBLISHER => {
                             publisher = value.to_string();
                         }
-                        "Original from" => {
+                        Self::LABEL_ORIG_FROM => {
                             orig_from = value.to_string();
                         }
-                        "Digitized" => {
+                        Self::LABEL_DIGITIZED => {
                             date_digitized = value.to_string();
                         }
-                        "Length" => {
+                        Self::LABEL_ISBN => {
+                            value
+                                .split(",")
+                                .for_each(|x| isbn.push(x.trim().to_string()));
+                        }
+                        Self::LABEL_LENGTH => {
                             length = Self::parse_length(value)?;
                         }
                         _ => (),
@@ -223,6 +279,7 @@ impl BookMetadata {
             }
         }
 
+        // Determine content type from text in preview link
         let book_type = match doc
             .select(&Selector::parse("#preview-link span").to_result()?)
             .next()
@@ -242,7 +299,7 @@ impl BookMetadata {
 
         Ok(BookMetadata {
             id: id.to_string(),
-            series_name,
+            title,
             publish_date,
             volume,
             issn,
