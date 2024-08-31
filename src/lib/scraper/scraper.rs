@@ -1,4 +1,4 @@
-use image::GenericImage;
+use image::{ColorType, DynamicImage, GenericImage};
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -300,11 +300,30 @@ pub fn download_issue(
                         .to_result()?;
 
                 // Write to disk.
-                filename = generate_image_filename(page_number, &page.pid, &get_image_ext(&res)?);
-                if let Ok(mut file) =
-                    std::fs::File::create_new(std::format!("{issue_pics_dir}/{filename}"))
-                {
-                    res.copy_to(&mut file).to_result()?;
+                let ext = get_image_ext(&res)?;
+                filename = generate_image_filename(page_number, &page.pid, &ext);
+
+                let out_path = std::format!("{issue_pics_dir}/{filename}");
+
+                if ext == "png" {
+                    // If PNG, ensure 24bpp or else it may not appear correctly in PDF.
+                    // In the future, may want to just save as is and let PDF conversion handle image conversion.
+                    let mut buf = vec![];
+                    _ = res.read_to_end(&mut buf).to_result()?;
+                    let img = image::load_from_memory(&buf).to_result()?;
+                    let img = match img.color() {
+                        ColorType::Rgb8 => img,
+                        _ => {
+                            let mut img_24_bpp = DynamicImage::new_rgb8(img.width(), img.height());
+                            img_24_bpp.copy_from(&img, 0, 0).to_result()?;
+                            img_24_bpp
+                        }
+                    };
+                    img.save(out_path).to_result()?;
+                } else {
+                    if let Ok(mut file) = std::fs::File::create_new(out_path) {
+                        res.copy_to(&mut file).to_result()?;
+                    }
                 }
             }
 

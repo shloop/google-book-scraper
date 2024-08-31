@@ -161,11 +161,19 @@ impl BookMetadata {
 
     /// Gets the full title of this book, including the series name if it is a magazine issue.
     pub fn get_full_title(&self) -> String {
-        match self.book_type {
-            ContentType::Magazine | ContentType::Newspaper => {
-                std::format!("{} - {}", &self.title, &self.publish_date)
-            }
-            ContentType::Book => self.title.to_string(),
+        // Note: Content type detection is currently broken for non-English speaking countries, so always including publish date if it exists for now.
+        // It doesn't appear that this field would be populated for books anyway.
+
+        // match self.book_type {
+        //     ContentType::Magazine | ContentType::Newspaper => {
+        //         std::format!("{} - {}", &self.title, &self.publish_date)
+        //     }
+        //     ContentType::Book => self.title.to_string(),
+        // }
+
+        match self.publish_date.as_str().trim() {
+            "" => self.title.to_string(),
+            _ => std::format!("{} - {}", &self.title, &self.publish_date),
         }
     }
 
