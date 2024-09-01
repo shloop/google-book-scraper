@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+    
+permissions:
+  contents: write
+  
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        platform: 
+          - os_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: gbscraper.exe
+            final: gbscraper-x86_64-pc-windows.zip
+          - os_name: Windows-i686
+            os: windows-latest
+            target: i686-pc-windows-msvc
+            bin: gbscraper.exe
+            final: gbscraper-i686-pc-windows.zip
+          - os_name: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: gbscraper
+            final: gbscraper-x86_64-apple-darwin.tar.gz
+          - os_name: macOS-aarch64
+            os: macOS-latest
+            target: aarch64-apple-darwin
+            bin: gbscraper
+            final: gbscraper-aarch64-apple-darwin.tar.gz
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: gbscraper
+            final: gbscraper-Linux-x86_64.tar.gz
+          # - os_name: Linux-i686
+          #   os: ubuntu-latest
+          #   target: i686-unknown-linux-gnu
+          #   bin: gbscraper
+          #   final: gbscraper-Linux-i686.tar.gz
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Build - ${{ matrix.platform.os_name }}
+      run: |
+        rustup target add ${{matrix.platform.target}}
+        cargo build --release --target ${{ matrix.platform.target }}
+    - name: Archive prep
+      run: |
+        mkdir publish
+        cp README.md publish
+        cp LICENSE-APACHE publish
+        cp LICENSE-MIT publish
+        cp attribution.txt publish
+        mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
+    - name: Archive (.zip)
+      if: matrix.platform.os == 'windows-latest'
+      run: |
+        cd publish
+        7z a ../${{ matrix.platform.final }} *
+    - name: Archive (.tar.gz)
+      if: matrix.platform.os != 'windows-latest'
+      run: |
+        cd publish
+        tar cvzf ../${{ matrix.platform.final }} *
+    - name: Release
+      run:
+        gh release upload ${{ github.event.release.tag_name }} ${{ matrix.platform.final }}
