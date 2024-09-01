@@ -20,32 +20,32 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
-            final: gbscraper-x86_64-pc-windows.zip
+            final: gbscraper-windows-x86_64.zip
           - os_name: Windows-i686
             os: windows-latest
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
-            final: gbscraper-i686-pc-windows.zip
+            final: gbscraper-windows-i686.zip
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
             bin: gbscraper
-            final: gbscraper-x86_64-apple-darwin.tar.gz
+            final: gbscraper-apple-darwin-x86_64.tar.gz
           - os_name: macOS-aarch64
             os: macOS-latest
             target: aarch64-apple-darwin
             bin: gbscraper
-            final: gbscraper-aarch64-apple-darwin.tar.gz
+            final: gbscraper-apple-darwin-aarch64.tar.gz
           - os_name: Linux-x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             bin: gbscraper
-            final: gbscraper-Linux-x86_64.tar.gz
+            final: gbscraper-linux-x86_64.tar.gz
           # - os_name: Linux-i686
           #   os: ubuntu-latest
           #   target: i686-unknown-linux-gnu
           #   bin: gbscraper
-          #   final: gbscraper-Linux-i686.tar.gz
+          #   final: gbscraper-linux-i686.tar.gz
     runs-on: ${{ matrix.platform.os }}
     steps:
     - name: Checkout
