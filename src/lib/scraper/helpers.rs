@@ -33,6 +33,20 @@ pub(crate) fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String 
     )
 }
 
+/// Converts URL to US/English and strips unneccessary 
+pub(crate) fn sanitize_url(url: &str) -> io::Result<String> {
+
+    // Strip everything but ID and force English
+    let base_url = url_from_id(&id_from_url(url)?);
+    // Check for period in original URL and add to result if found
+    const PERIOD_TAG: &str = "atm_aiy";
+    let url_obj = Url::try_from(url).to_result()?;
+    match url_obj.query_pairs().find(|x| x.0 == PERIOD_TAG) {
+        Some(x) => Ok(std::format!("{base_url}&{PERIOD_TAG}={}", x.1.to_string())),
+        None => Ok(base_url)
+    }
+}
+
 // Methods to convert between option/result types for error propogation.
 
 pub(crate) trait ToResult<T> {

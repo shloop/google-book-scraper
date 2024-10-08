@@ -72,18 +72,16 @@ pub fn download_issue(
     let mut formats = options.formats.clone();
     let exists_already = std::path::Path::new(&issue_pics_dir).exists();
 
-    if exists_already {
-        if std::path::Path::new(&filename_pdf).exists() {
-            formats.remove(FormatFlags::Pdf)
-        }
-        if std::path::Path::new(&filename_cbz).exists() {
-            formats.remove(FormatFlags::Cbz)
-        }
+    if std::path::Path::new(&filename_pdf).exists() {
+        formats.remove(FormatFlags::Pdf)
+    }
+    if std::path::Path::new(&filename_cbz).exists() {
+        formats.remove(FormatFlags::Cbz)
+    }
 
-        if formats == FormatFlags::None && (exists_already || !options.keep_images) {
-            println!("Already downloaded. Skipping...");
-            return Ok(DownloadStatus::Skipped);
-        }
+    if formats == FormatFlags::None && (exists_already || !options.keep_images) {
+        println!("Already downloaded. Skipping...");
+        return Ok(DownloadStatus::Skipped);
     }
 
     // Parse TOC info.
