@@ -21,6 +21,8 @@ pub struct ScraperOptions {
     pub archive_file: Option<String>,
     /// If true, only retrieve metadata without downloading or processing images.
     pub skip_download: bool,
+    /// Number of times to attempt to download any file before giving up on a book. Set to 0 to try indefinitely.
+    pub download_attempts: u32,
 }
 
 impl Default for ScraperOptions {
@@ -31,6 +33,7 @@ impl Default for ScraperOptions {
             already_downloaded: HashSet::new(),
             archive_file: None,
             skip_download: false,
+            download_attempts: 3
         }
     }
 }

@@ -46,7 +46,7 @@ pub fn download_issue(
     println!("Identifying book: {id}...");
 
     // Fetch page.
-    let res = reqwest::blocking::get(url).to_result()?;
+    let res = try_download(&url, options.download_attempts)?;
     let body = res.text().to_result()?;
     let doc = Html::parse_document(&body);
 
@@ -114,7 +114,7 @@ pub fn download_issue(
     }
 
     // Fetch JSON to get info about all pages.
-    let mut res = reqwest::blocking::get(get_json_url(&id, "1", "1")).to_result()?;
+    let mut res = try_download(&get_json_url(&id, "1", "1"), options.download_attempts)?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
     let issue: IssueJson = serde_json::from_str(&body).to_result()?;
@@ -157,8 +157,10 @@ pub fn download_issue(
         }
 
         // Fetch JSON for page.
-        let mut res =
-            reqwest::blocking::get(get_json_url(&id, &first_page, &page_id)).to_result()?;
+        let mut res = try_download(
+            &get_json_url(&id, &first_page, &page_id),
+            options.download_attempts,
+        )?;
         let mut body = String::new();
         res.read_to_string(&mut body)?;
         let issue: IssueJson = serde_json::from_str(&body).to_result()?;
@@ -255,7 +257,8 @@ pub fn download_issue(
 
                                     // Fetch image segment and determine format.
                                     let mut res =
-                                        reqwest::blocking::get(std::format!("https://books.google.com/books/content?id={id}&pg={coord_x},{coord_y}&img=1&zoom={zoom}&hl=en&sig={sig}&tid={i}")).to_result()?;
+                                        try_download(&std::format!("https://books.google.com/books/content?id={id}&pg={coord_x},{coord_y}&img=1&zoom={zoom}&hl=en&sig={sig}&tid={i}"), 
+                                        options.download_attempts)?;
                                     let ext = get_image_ext(&res)?;
                                     any_png |= ext == "png";
 
@@ -294,8 +297,7 @@ pub fn download_issue(
 
                 // Fetch image at highest available resolution.
                 let mut res =
-                    reqwest::blocking::get(std::format!("{}&w=10000", page.src.as_ref().unwrap()))
-                        .to_result()?;
+                    try_download(&std::format!("{}&w=10000", page.src.as_ref().unwrap()),options.download_attempts)?;
 
                 // Write to disk.
                 let ext = get_image_ext(&res)?;

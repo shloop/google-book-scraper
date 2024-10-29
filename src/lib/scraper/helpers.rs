@@ -33,9 +33,8 @@ pub(crate) fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String 
     )
 }
 
-/// Converts URL to US/English and strips unneccessary 
+/// Converts URL to US/English and strips unneccessary
 pub(crate) fn sanitize_url(url: &str) -> io::Result<String> {
-
     // Strip everything but ID and force English
     let base_url = url_from_id(&id_from_url(url)?);
     // Check for period in original URL and add to result if found
@@ -43,7 +42,7 @@ pub(crate) fn sanitize_url(url: &str) -> io::Result<String> {
     let url_obj = Url::try_from(url).to_result()?;
     match url_obj.query_pairs().find(|x| x.0 == PERIOD_TAG) {
         Some(x) => Ok(std::format!("{base_url}&{PERIOD_TAG}={}", x.1.to_string())),
-        None => Ok(base_url)
+        None => Ok(base_url),
     }
 }
 
@@ -105,6 +104,26 @@ pub(crate) fn get_image_ext(res: &reqwest::blocking::Response) -> io::Result<Str
         }
     }
     Ok(ext.to_string())
+}
+
+/// Determine image extension by the content header.
+pub(crate) fn try_download(url: &str, mut attempts: u32) -> io::Result<reqwest::blocking::Response> {
+    let indefinite = attempts == 0;
+    let mut res: io::Result<reqwest::blocking::Response> = Err(io::Error::new(io::ErrorKind::Other, ""));
+    while indefinite || attempts > 0 {
+        res = reqwest::blocking::get(url).to_result();
+        if let Ok(res) = res {
+            return Ok(res);
+        }
+        if !indefinite {
+            attempts -= 1;
+            eprintln!("Download failed for {url}. {attempts} attempt(s) remaining...");
+        }
+        else{
+            eprintln!("Download failed for {url}. Retrying...");
+        }
+    }
+    res
 }
 
 #[cfg(test)]
