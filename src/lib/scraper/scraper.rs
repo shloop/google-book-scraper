@@ -1,4 +1,5 @@
 use image::{ColorType, DynamicImage, GenericImage};
+use sanitise_file_name::sanitise;
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -54,10 +55,10 @@ pub fn download_issue(
     let meta = BookMetadata::from_page(&id, &doc)?;
 
     // Derive paths.
-    let issue_combined_id = std::format!("{0} [{1}]", meta.get_full_title(), meta.id);
+    let issue_combined_id = std::format!("{0} [{1}]", sanitise(&meta.get_full_title()), meta.id);
     let dest = match meta.book_type {
         ContentType::Magazine | ContentType::Newspaper => {
-            std::format!("{dest}/{0}", meta.title)
+            std::format!("{dest}/{0}", sanitise(&meta.title))
         }
         ContentType::Book => dest.to_string(),
     };

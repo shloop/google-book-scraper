@@ -28,3 +28,4 @@ clap = { version = "4.5.13", features = ["derive"] }
 bitflags = "2.6.0"
 zip = "2.1.6"
 image = "0.25.2"
+sanitise-file-name = "1.0.0"
