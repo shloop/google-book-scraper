@@ -42,17 +42,26 @@ gbscraper -m full -a archive.txt <URL>
 
 ### All Options
 ```
-Usage: gbscraper [OPTIONS] <URL>
+Usage: gbscraper.exe [OPTIONS] <URL>
 
 Arguments:
   <URL>  URL of book to download
 
 Options:
-  -o, --target-dir <DIRECTORY>  Directory to save issue(s) to [default: .]
-  -k, --keep-images             If set, downloaded images will not be deleted after conversion
-  -f, --format <FORMAT>...      Format(s) to convert downloaded images to [default: pdf] [possible values: none, pdf, cbz, all]
-  -m, --download-mode <MODE>    Which issues to download from URL [default: single] [possible values: single, period, full]
-  -a, --archive <ARCHIVE>       Don't include books in provided file. File will be updated with books downloaded
-  -h, --help                    Print help
-  -V, --version                 Print version
+  -o, --target-dir <DIRECTORY>
+          Directory to save issue(s) to [default: .]
+  -k, --keep-images
+          If set, downloaded images will not be deleted after conversion
+  -f, --format <FORMAT>...
+          Format(s) to convert downloaded images to [default: pdf] [possible values: none, pdf, cbz, all]
+  -m, --download-mode <MODE>
+          Which issues to download from URL [default: single] [possible values: single, period, full]
+  -a, --archive <ARCHIVE>
+          Omit previously downloaded books referenced in provided file. If provided, newly downloaded books will be automatically added to file
+  -r, --download-attempts <DOWNLOAD_ATTEMPTS>
+          Number of times to attempt downloading any file before giving up on book. Set to 0 to try indefinitely [default: 3]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
