@@ -65,3 +65,10 @@ Options:
   -V, --version
           Print version
 ```
+
+### Planned Features
+- Preservation of links within pages in PDFs.
+- Inclusion of book metadata in PDFs.
+- Configurable naming of files based on book metadata.
+- Resuming partially downloaded books.
+- Concurrent page downloads.
