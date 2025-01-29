@@ -22,11 +22,13 @@ cargo install google-book-scraper
 
 ### Basic Usage
 
-To download a single book or issue of a magazine as a PDF to the current directory, provide the its URL as a command line argument.
+To download a single book or issue of a magazine as a PDF to the current directory, provide its URL as a command line argument.
 
 ```
 gbscraper <URL>
 ```
+> [!NOTE]
+> In some shells you may need to wrap the URL in quotes.
 
 ### Batch Downloads
 
