@@ -210,6 +210,16 @@ fn create_pdf_internal(
         doc.trailer.set("Root", catalog_id);
     }
 
+    let info_id = doc.add_object(dictionary! {
+        "Title" => Object::string_literal("~Title"),
+        "Author" => Object::string_literal("~Author"),
+        "Subject" => Object::string_literal("~Subject"),
+        "Keywords" => Object::string_literal("~Keywords"),
+        "CreationDate" => time::OffsetDateTime::now_utc(),
+        "Creator" => Object::string_literal("https://crates.io/crates/lopdf"),
+    });
+    doc.trailer.set("Info", info_id);
+
     doc.compress();
     doc.save(target_filename)?;
     Ok(())
