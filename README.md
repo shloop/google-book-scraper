@@ -62,6 +62,8 @@ Options:
           Omit previously downloaded books referenced in provided file. If provided, newly downloaded books will be automatically added to file
   -r, --download-attempts <DOWNLOAD_ATTEMPTS>
           Number of times to attempt downloading any file before giving up on book. Set to 0 to try indefinitely [default: 3]
+  -v, --verbose
+          If set, extra output will be given
   -h, --help
           Print help
   -V, --version
