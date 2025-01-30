@@ -18079,7 +18079,7 @@ The google-book-scraper package uses some third party libraries under their own 
     limitations under the License.
 
 
- * google-book-scraper 0.3.3 under the terms of MIT AND Apache-2.0:
+ * google-book-scraper 0.3.4 under the terms of MIT AND Apache-2.0:
 
 
 

@@ -47,6 +47,9 @@ pub fn download_issue(
     println!("Identifying book: {id}...");
 
     // Fetch page.
+    if options.verbose {
+        println!("Attemping download of issue page with url: {url}");
+    }
     let res = try_download(&url, options.download_attempts)?;
     let body = res.text().to_result()?;
     let doc = Html::parse_document(&body);
@@ -297,8 +300,10 @@ pub fn download_issue(
                 // TODO: retries and/or error logging.
 
                 // Fetch image at highest available resolution.
-                let mut res =
-                    try_download(&std::format!("{}&w=10000", page.src.as_ref().unwrap()),options.download_attempts)?;
+                let mut res = try_download(
+                    &std::format!("{}&w=10000", page.src.as_ref().unwrap()),
+                    options.download_attempts,
+                )?;
 
                 // Write to disk.
                 let ext = get_image_ext(&res)?;

@@ -23,6 +23,8 @@ pub struct ScraperOptions {
     pub skip_download: bool,
     /// Number of times to attempt to download any file before giving up on a book. Set to 0 to try indefinitely.
     pub download_attempts: u32,
+    /// If true, extra output will be given.
+    pub verbose: bool,
 }
 
 impl Default for ScraperOptions {
@@ -33,7 +35,8 @@ impl Default for ScraperOptions {
             already_downloaded: HashSet::new(),
             archive_file: None,
             skip_download: false,
-            download_attempts: 3
+            download_attempts: 3,
+            verbose: false,
         }
     }
 }

@@ -12,6 +12,10 @@ pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> i
 
     let url= sanitize_url(url)?;
 
+    if options.verbose {
+        println!("Attemping download of period page with url: {url}");
+    }
+
     for issue_url in get_issue_urls_in_period(&url)? {
         if let Err(x) = download_issue(&issue_url, dest, options) {
             eprintln!("Error downloading issue {issue_url}: {}", x);
@@ -24,6 +28,10 @@ pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> i
 pub fn download_all(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
 
     let url= sanitize_url(url)?;
+
+    if options.verbose {
+        println!("Attemping download of base page with url: {url}");
+    }
 
     for period_url in get_period_urls(&url)? {
         if let Err(x) = download_period(&period_url, dest, options) {

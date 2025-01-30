@@ -37,6 +37,11 @@ struct Args {
     /// Number of times to attempt downloading any file before giving up on book. Set to 0 to try indefinitely.
     #[arg(short, long, short = 'r', default_value_t = 3)]
     download_attempts: u32,
+
+    /// If set, extra output will be given.
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
+
     // TODO: File naming scheme
 }
 
@@ -94,6 +99,7 @@ impl Args {
             },
             skip_download: false,
             download_attempts: self.download_attempts,
+            verbose: self.verbose,
         })
     }
 }
