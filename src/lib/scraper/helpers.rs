@@ -22,7 +22,7 @@ pub(crate) fn id_from_url(url: &str) -> io::Result<String> {
 
 /// Generate basic old-style URL from book ID.
 pub(crate) fn url_from_id(id: &str) -> String {
-    std::format!("https://books.google.com/books?id={id}&hl=eng")
+    std::format!("https://books.google.us/books?id={id}&hl=en")
 }
 
 /// Gets URL of JSON pertaiing to specified page.
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn url_fixing() {
         let url = url_from_id(ID);
-        let expected = std::format!("https://books.google.com/books?id={ID}&hl=eng");
+        let expected = std::format!("https://books.google.us/books?id={ID}&hl=en");
         assert_eq!(url, expected);
     }
 }
