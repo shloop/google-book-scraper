@@ -26,6 +26,11 @@ jobs:
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
             final: gbscraper-windows-i686.zip
+          - os_name: Windows-aarch64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            bin: gbscraper.exe
+            final: gbscraper-windows-aarch64.zip
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin

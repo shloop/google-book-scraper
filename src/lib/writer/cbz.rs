@@ -18,18 +18,16 @@ pub fn create_cbz(image_dir: &str, target_filename: &str) -> io::Result<()> {
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     let read_dir = fs::read_dir(image_dir)?;
-    for dir_entry in read_dir {
-        if let Ok(dir_entry) = dir_entry {
-            if let Ok(mut file) = std::fs::File::open(dir_entry.path()) {
-                let filename = dir_entry.file_name().into_string().unwrap();
-                let _ = file.seek(io::SeekFrom::Start(0));
+    for dir_entry in read_dir.flatten() {
+        if let Ok(mut file) = std::fs::File::open(dir_entry.path()) {
+            let filename = dir_entry.file_name().into_string().unwrap();
+            let _ = file.seek(io::SeekFrom::Start(0));
 
-                zip.start_file(filename, options)?;
+            zip.start_file(filename, options)?;
 
-                let mut buffer = Vec::new();
-                let _ = file.read_to_end(&mut buffer)?;
-                zip.write_all(&buffer)?;
-            }
+            let mut buffer = Vec::new();
+            let _ = file.read_to_end(&mut buffer)?;
+            zip.write_all(&buffer)?;
         }
     }
 

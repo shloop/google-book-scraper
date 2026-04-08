@@ -1,5 +1,6 @@
 pub mod batching;
 mod helpers;
+#[allow(clippy::module_inception)]
 pub mod scraper;
 pub mod types;
 

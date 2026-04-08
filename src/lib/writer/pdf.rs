@@ -28,6 +28,12 @@ impl TocEntry {
     }
 }
 
+impl Default for TableOfContents {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TableOfContents {
     pub fn new() -> TableOfContents {
         TableOfContents {
@@ -125,61 +131,59 @@ fn create_pdf_internal(
     // Add page for each image
     let mut pages = vec![];
     let paths = fs::read_dir(image_dir)?;
-    for path in paths {
-        if let Ok(p) = path {
-            let name = p.file_name().into_string().unwrap();
+    for p in paths.flatten() {
+        let name = p.file_name().into_string().unwrap();
 
-            if let Ok(stream) = lopdf::xobject::image(p.path().as_os_str().to_str().unwrap()) {
-                let content = Content {
-                    operations: Vec::<Operation>::new(),
-                };
-                let content_id =
-                    doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+        if let Ok(stream) = lopdf::xobject::image(p.path().as_os_str().to_str().unwrap()) {
+            let content = Content {
+                operations: Vec::<Operation>::new(),
+            };
+            let content_id =
+                doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
 
-                let mut width: i64 = 800;
-                let mut height: i64 = 1100;
-                if let Object::Integer(a) = stream.dict.get("Width".as_bytes()).unwrap() {
-                    width = *a;
-                }
-                if let Object::Integer(a) = stream.dict.get("Height".as_bytes()).unwrap() {
-                    height = *a;
-                }
-
-                let image_filename = doc.add_object(dictionary! {
-                    "Type" => "Page",
-                    "Parent" => pages_id,
-                    "Contents" => content_id,
-                    "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
-                });
-
-                let result = doc.insert_image(
-                    image_filename,
-                    stream,
-                    (0., 0.),
-                    (width as f32, height as f32),
-                );
-                if result.is_err() {
-                    println!("error!: {name}")
-                }
-
-                pages.push(image_filename.into());
-
-                // Check for TOC entry for this page
-                if let Some(t) = toc {
-                    if let Some(value) = t.get_page_info(&name) {
-                        let b = Bookmark::new(
-                            value.page_title.clone(),
-                            value.color,
-                            value.format,
-                            image_filename,
-                        );
-                        doc.add_bookmark(b, None);
-                    }
-                }
-
-                //TODO: links in page
-                //Note: may need to download image without setting "w=3000" first in order to scale coordinates
+            let mut width: i64 = 800;
+            let mut height: i64 = 1100;
+            if let Object::Integer(a) = stream.dict.get("Width".as_bytes()).unwrap() {
+                width = *a;
             }
+            if let Object::Integer(a) = stream.dict.get("Height".as_bytes()).unwrap() {
+                height = *a;
+            }
+
+            let image_filename = doc.add_object(dictionary! {
+                "Type" => "Page",
+                "Parent" => pages_id,
+                "Contents" => content_id,
+                "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
+            });
+
+            let result = doc.insert_image(
+                image_filename,
+                stream,
+                (0., 0.),
+                (width as f32, height as f32),
+            );
+            if result.is_err() {
+                println!("error!: {name}")
+            }
+
+            pages.push(image_filename.into());
+
+            // Check for TOC entry for this page
+            if let Some(t) = toc {
+                if let Some(value) = t.get_page_info(&name) {
+                    let b = Bookmark::new(
+                        value.page_title.clone(),
+                        value.color,
+                        value.format,
+                        image_filename,
+                    );
+                    doc.add_bookmark(b, None);
+                }
+            }
+
+            //TODO: links in page
+            //Note: may need to download image without setting "w=3000" first in order to scale coordinates
         }
     }
 
