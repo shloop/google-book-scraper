@@ -226,7 +226,7 @@ impl BookMetadata {
             .select(&Selector::parse("#metadata").to_result()?)
             .next()
         {
-            for (i, child) in (0_u32..).zip(e.text()) {
+            for (i, child) in e.text().enumerate() {
                 if i == 0 {
                     publish_date = child.to_string();
                 } else if child.starts_with(Self::PREFIX_PUBLISHER) {

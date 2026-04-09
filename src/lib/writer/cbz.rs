@@ -19,21 +19,20 @@ pub fn create_cbz(image_dir: &str, target_filename: &str) -> io::Result<()> {
 
     let read_dir = fs::read_dir(image_dir)?;
     for dir_entry in read_dir.flatten() {
-        if let Ok(mut file) = std::fs::File::open(dir_entry.path()) {
-            let filename = dir_entry.file_name().into_string().map_err(|file_name| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("image filename is not valid UTF-8: {:?}", file_name),
-                )
-            })?;
-            file.seek(io::SeekFrom::Start(0))?;
+        let mut file = std::fs::File::open(dir_entry.path())?;
+        let filename = dir_entry.file_name().into_string().map_err(|file_name| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("image filename is not valid UTF-8: {:?}", file_name),
+            )
+        })?;
+        file.seek(io::SeekFrom::Start(0))?;
 
-            zip.start_file(filename, options)?;
+        zip.start_file(filename, options)?;
 
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)?;
-            zip.write_all(&buffer)?;
-        }
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        zip.write_all(&buffer)?;
     }
 
     zip.finish()?;

@@ -46,7 +46,7 @@ pub(crate) fn sanitize_url(url: &str) -> io::Result<String> {
     }
 }
 
-// Methods to convert between option/result types for error propogation.
+// Methods to convert between option/result types for error propagation.
 
 pub(crate) trait ToResult<T> {
     fn to_result(self) -> std::io::Result<T>;

@@ -147,65 +147,66 @@ fn create_pdf_internal(
             )
         })?;
 
-        if let Ok(stream) = lopdf::xobject::image(image_path_str) {
-            let content = Content {
-                operations: Vec::<Operation>::new(),
-            };
-            let encoded_content = content.encode().map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("failed to encode PDF content stream for {}: {e}", name),
-                )
-            })?;
-            let content_id = doc.add_object(Stream::new(dictionary! {}, encoded_content));
-
-            let mut width: i64 = 800;
-            let mut height: i64 = 1100;
-            if let Some(Object::Integer(a)) = stream.dict.get("Width".as_bytes()) {
-                width = *a;
-            }
-            if let Some(Object::Integer(a)) = stream.dict.get("Height".as_bytes()) {
-                height = *a;
-            }
-
-            let image_filename = doc.add_object(dictionary! {
-                "Type" => "Page",
-                "Parent" => pages_id,
-                "Contents" => content_id,
-                "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
-            });
-
-            doc.insert_image(
-                image_filename,
-                stream,
-                (0., 0.),
-                (width as f32, height as f32),
+        let stream = lopdf::xobject::image(image_path_str).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("failed to load image '{}': {e}", name),
             )
-            .map_err(|err| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("failed to insert image '{name}' into PDF: {err}"),
-                )
-            })?;
+        })?;
+        let content = Content {
+            operations: Vec::<Operation>::new(),
+        };
+        let encoded_content = content.encode().map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("failed to encode PDF content stream for {}: {e}", name),
+            )
+        })?;
+        let content_id = doc.add_object(Stream::new(dictionary! {}, encoded_content));
 
-            pages.push(image_filename.into());
-
-            // Check for TOC entry for this page
-            if let Some(t) = toc {
-                if let Some(value) = t.get_page_info(&name) {
-                    let b = Bookmark::new(
-                        value.page_title.clone(),
-                        value.color,
-                        value.format,
-                        image_filename,
-                    );
-                    doc.add_bookmark(b, None);
-                }
-            }
-
-            //TODO: links in page
-            //Note: may need to download image without setting "w=3000" first in order to scale coordinates
+        let mut width: i64 = 800;
+        let mut height: i64 = 1100;
+        if let Ok(Object::Integer(a)) = stream.dict.get("Width".as_bytes()) {
+            width = *a;
         }
+        if let Ok(Object::Integer(a)) = stream.dict.get("Height".as_bytes()) {
+            height = *a;
+        }
+
+        let image_filename = doc.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "Contents" => content_id,
+            "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
+        });
+
+        doc.insert_image(
+            image_filename,
+            stream,
+            (0., 0.),
+            (width as f32, height as f32),
+        )
+        .map_err(|err| {
+            io::Error::other(format!("failed to insert image '{name}' into PDF: {err}"))
+        })?;
+
+        pages.push(image_filename.into());
+
+        // Check for TOC entry for this page
+        if let Some(t) = toc {
+            if let Some(value) = t.get_page_info(&name) {
+                let b = Bookmark::new(
+                    value.page_title.clone(),
+                    value.color,
+                    value.format,
+                    image_filename,
+                );
+                doc.add_bookmark(b, None);
+            }
+        }
+
+        //TODO: links in page
+        //Note: may need to download image without setting "w=3000" first in order to scale coordinates
     }
 
     // Finalize and save document
