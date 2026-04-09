@@ -69,7 +69,7 @@ impl<T> ToResultErrorMessage<T> for Option<T> {
     fn to_result(self, msg: &str) -> std::io::Result<T> {
         match self {
             Some(x) => Ok(x),
-            None => Err(std::io::Error::other(msg)),
+            None => Err(std::io::Error::other(msg.to_string())),
         }
     }
 }

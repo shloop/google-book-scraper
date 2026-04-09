@@ -132,21 +132,39 @@ fn create_pdf_internal(
     let mut pages = vec![];
     let paths = fs::read_dir(image_dir)?;
     for p in paths.flatten() {
-        let name = p.file_name().into_string().unwrap();
+        let name = p.file_name().into_string().map_err(|file_name| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("image filename is not valid UTF-8: {:?}", file_name),
+            )
+        })?;
 
-        if let Ok(stream) = lopdf::xobject::image(p.path().as_os_str().to_str().unwrap()) {
+        let image_path = p.path();
+        let image_path_str = image_path.to_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("image path is not valid UTF-8: {:?}", image_path),
+            )
+        })?;
+
+        if let Ok(stream) = lopdf::xobject::image(image_path_str) {
             let content = Content {
                 operations: Vec::<Operation>::new(),
             };
-            let content_id =
-                doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+            let encoded_content = content.encode().map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("failed to encode PDF content stream for {}: {e}", name),
+                )
+            })?;
+            let content_id = doc.add_object(Stream::new(dictionary! {}, encoded_content));
 
             let mut width: i64 = 800;
             let mut height: i64 = 1100;
-            if let Object::Integer(a) = stream.dict.get("Width".as_bytes()).unwrap() {
+            if let Some(Object::Integer(a)) = stream.dict.get("Width".as_bytes()) {
                 width = *a;
             }
-            if let Object::Integer(a) = stream.dict.get("Height".as_bytes()).unwrap() {
+            if let Some(Object::Integer(a)) = stream.dict.get("Height".as_bytes()) {
                 height = *a;
             }
 
@@ -157,15 +175,18 @@ fn create_pdf_internal(
                 "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
             });
 
-            let result = doc.insert_image(
+            doc.insert_image(
                 image_filename,
                 stream,
                 (0., 0.),
                 (width as f32, height as f32),
-            );
-            if result.is_err() {
-                println!("error!: {name}")
-            }
+            )
+            .map_err(|err| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("failed to insert image '{name}' into PDF: {err}"),
+                )
+            })?;
 
             pages.push(image_filename.into());
 
