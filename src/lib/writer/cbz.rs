@@ -17,8 +17,10 @@ pub fn create_cbz(image_dir: &str, target_filename: &str) -> io::Result<()> {
     let mut zip = zip::ZipWriter::new(file);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    let read_dir = fs::read_dir(image_dir)?;
-    for dir_entry in read_dir.flatten() {
+    let mut entries: Vec<_> = fs::read_dir(image_dir)?
+        .collect::<io::Result<_>>()?;
+    entries.sort_by_key(|e| e.file_name());
+    for dir_entry in entries {
         let mut file = std::fs::File::open(dir_entry.path())?;
         let filename = dir_entry.file_name().into_string().map_err(|file_name| {
             io::Error::new(

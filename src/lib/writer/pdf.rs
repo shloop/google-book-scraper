@@ -130,8 +130,10 @@ fn create_pdf_internal(
 
     // Add page for each image
     let mut pages = vec![];
-    let paths = fs::read_dir(image_dir)?;
-    for p in paths.flatten() {
+    let mut entries: Vec<_> = fs::read_dir(image_dir)?
+        .collect::<io::Result<_>>()?;
+    entries.sort_by_key(|e| e.file_name());
+    for p in entries {
         let name = p.file_name().into_string().map_err(|file_name| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
