@@ -73,7 +73,7 @@ pub fn download_issue(
 
     // Check if image directory and any needed formats already exist on disk.
 
-    let mut formats = options.formats;
+    let mut formats = options.formats.clone();
     let exists_already = std::path::Path::new(&issue_pics_dir).exists();
 
     if std::path::Path::new(&filename_pdf).exists() {
