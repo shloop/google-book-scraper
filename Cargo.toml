@@ -26,7 +26,7 @@ serde = { version = "1.0.24" , features = ["derive"] }
 serde_json = { version = "1.0.122" }
 clap = { version = "4.5.13", features = ["derive"] }
 bitflags = "2.6.0"
-zip = "2.1.6"
+zip = { version = "2.2.0", default-features = false, features = ["deflate-miniz"] }
 image = "0.25.2"
 sanitise-file-name = "1.0.0"
 time = "0.3.36"

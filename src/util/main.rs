@@ -87,9 +87,9 @@ impl Args {
                 let mut set = HashSet::<String>::new();
                 if let Some(file) = self.archive.as_ref() {
                     if std::fs::exists(file)? {
-                        for line in std::fs::read_to_string(file).unwrap().lines() {
+                        for line in std::fs::read_to_string(file)?.lines() {
                             let trimmed = line.trim();
-                            if trimmed != "" {
+                            if !trimmed.is_empty() {
                                 set.insert(trimmed.to_string());
                             }
                         }
@@ -106,10 +106,16 @@ impl Args {
 
 fn main() {
     let args = Args::parse();
-    let mut options = args.to_options().unwrap();
+    let mut options = match args.to_options() {
+        Ok(opts) => opts,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    };
     let result = match args.download_mode {
         DownloadMode::Single => {
-            scraper::download_issue(&args.url, &args.target_dir, &mut options).and_then(|_| Ok(()))
+            scraper::download_issue(&args.url, &args.target_dir, &mut options).map(|_| ())
         }
         DownloadMode::Period => scraper::download_period(&args.url, &args.target_dir, &mut options),
         DownloadMode::Full => scraper::download_all(&args.url, &args.target_dir, &mut options),

@@ -129,7 +129,7 @@ pub fn download_issue(
     let mut first_page = "1".to_string();
     let mut i_page = 1;
     for page in issue.page {
-        if let None = page.src {
+        if page.src.is_none() {
             page_number_lookup.insert(page.pid.clone(), i_page);
             pages_to_download.push_back(page.pid.clone());
             if i_page == 1 {
@@ -172,12 +172,8 @@ pub fn download_issue(
         // Download images linked in JSON.
         // Note: JSON will contain an entry for every page in book. Requested page should have accompanying source URL, and adjacent pages may as well.
         for page in &issue.page {
-            // Skip if already downloaded.
-            if let None = &page.src {
-                continue;
-            }
-            // Skip if no download link.
-            else if pages_downloaded.contains(&page.pid) {
+            // Skip if no download link or already downloaded.
+            if page.src.is_none() || pages_downloaded.contains(&page.pid) {
                 continue;
             }
 
@@ -209,8 +205,8 @@ pub fn download_issue(
 
                     let mut any_png = false;
                     let mut canvas = image::DynamicImage::new(
-                        size_info.width.into(),
-                        size_info.height.into(),
+                        size_info.width,
+                        size_info.height,
                         image::ColorType::Rgb8,
                     );
 

@@ -139,6 +139,7 @@ pub enum ContentType {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum DownloadStatus {
     Skipped,
     Complete(BookMetadata),
@@ -176,9 +177,9 @@ impl BookMetadata {
     }
 
     fn parse_length(text: &str) -> io::Result<u32> {
-        Ok(Self::remove_and_extract(text, Self::SUFFIX_PAGES)
+        Self::remove_and_extract(text, Self::SUFFIX_PAGES)
             .parse::<u32>()
-            .to_result()?)
+            .to_result()
     }
 
     fn remove_and_extract(source: &str, to_remove: &str) -> String {
@@ -225,8 +226,7 @@ impl BookMetadata {
             .select(&Selector::parse("#metadata").to_result()?)
             .next()
         {
-            let mut i: u32 = 0;
-            for child in e.text() {
+            for (i, child) in e.text().enumerate() {
                 if i == 0 {
                     publish_date = child.to_string();
                 } else if child.starts_with(Self::PREFIX_PUBLISHER) {
@@ -238,8 +238,6 @@ impl BookMetadata {
                 } else {
                     volume = child.to_string();
                 }
-
-                i += 1;
             }
         };
 

@@ -14,7 +14,7 @@ pub(crate) fn id_from_url(url: &str) -> io::Result<String> {
         None => url_obj
             .path_segments()
             .to_result(INVALID_URL)?
-            .last()
+            .next_back()
             .to_result(INVALID_URL)?
             .to_string(),
     })
@@ -41,15 +41,14 @@ pub(crate) fn sanitize_url(url: &str) -> io::Result<String> {
     const PERIOD_TAG: &str = "atm_aiy";
     let url_obj = Url::try_from(url).to_result()?;
     match url_obj.query_pairs().find(|x| x.0 == PERIOD_TAG) {
-        Some(x) => Ok(std::format!("{base_url}&{PERIOD_TAG}={}", x.1.to_string())),
+        Some(x) => Ok(std::format!("{base_url}&{PERIOD_TAG}={}", x.1)),
         None => Ok(base_url),
     }
 }
 
-// Methods to convert between option/result types for error propogation.
+// Methods to convert between option/result types for error propagation.
 
 pub(crate) trait ToResult<T> {
-    ///
     fn to_result(self) -> std::io::Result<T>;
 }
 
@@ -57,13 +56,12 @@ impl<T, E: Display> ToResult<T> for std::result::Result<T, E> {
     fn to_result(self) -> std::io::Result<T> {
         match self {
             Ok(x) => Ok(x),
-            Err(x) => Err(std::io::Error::new(io::ErrorKind::Other, x.to_string())),
+            Err(x) => Err(std::io::Error::other(x.to_string())),
         }
     }
 }
 
 pub(crate) trait ToResultErrorMessage<T> {
-    ///
     fn to_result(self, msg: &str) -> std::io::Result<T>;
 }
 
@@ -71,19 +69,14 @@ impl<T> ToResultErrorMessage<T> for Option<T> {
     fn to_result(self, msg: &str) -> std::io::Result<T> {
         match self {
             Some(x) => Ok(x),
-            None => Err(std::io::Error::new(io::ErrorKind::Other, msg)),
+            None => Err(std::io::Error::other(msg.to_string())),
         }
     }
 }
 
 /// Generate filename for image.
 pub(crate) fn generate_image_filename(page_number: &usize, page_id: &str, ext: &str) -> String {
-    std::format!(
-        "{0}-{1}.{2}",
-        std::format!("{:0>5}", page_number),
-        page_id,
-        ext
-    )
+    std::format!("{:0>5}-{page_id}.{ext}", page_number)
 }
 
 /// Determine image extension by the content header.
@@ -109,7 +102,7 @@ pub(crate) fn get_image_ext(res: &reqwest::blocking::Response) -> io::Result<Str
 /// Determine image extension by the content header.
 pub(crate) fn try_download(url: &str, mut attempts: u32) -> io::Result<reqwest::blocking::Response> {
     let indefinite = attempts == 0;
-    let mut res: io::Result<reqwest::blocking::Response> = Err(io::Error::new(io::ErrorKind::Other, ""));
+    let mut res: io::Result<reqwest::blocking::Response> = Err(io::Error::other(""));
     while indefinite || attempts > 0 {
         res = reqwest::blocking::get(url).to_result();
         if let Ok(res) = res {

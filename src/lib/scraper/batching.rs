@@ -12,10 +12,10 @@ pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> i
     let url = sanitize_url(url)?;
 
     if options.verbose {
-        println!("Attemping download of period page with url: {url}");
+        println!("Attempting download of period page with url: {url}");
     }
 
-    for issue_url in get_issue_urls_in_period(&url, &options)? {
+    for issue_url in get_issue_urls_in_period(&url, options)? {
         if let Err(x) = download_issue(&issue_url, dest, options) {
             eprintln!("Error downloading issue {issue_url}: {}", x);
         }
@@ -28,10 +28,10 @@ pub fn download_all(url: &str, dest: &str, options: &mut ScraperOptions) -> io::
     let url = sanitize_url(url)?;
 
     if options.verbose {
-        println!("Attemping download of base page with url: {url}");
+        println!("Attempting download of base page with url: {url}");
     }
 
-    for period_url in get_period_urls(&url, &options)? {
+    for period_url in get_period_urls(&url, options)? {
         if let Err(x) = download_period(&period_url, dest, options) {
             eprintln!("Error downloading period {period_url}: {}", x);
         }
@@ -43,7 +43,7 @@ pub fn download_all(url: &str, dest: &str, options: &mut ScraperOptions) -> io::
 pub fn get_period_urls(url: &str, options: &ScraperOptions) -> io::Result<Vec<String>> {
     let mut ret = Vec::new();
 
-    let res = try_download(&url, options.download_attempts)?;
+    let res = try_download(url, options.download_attempts)?;
     let body = res.text().to_result()?;
 
     let doc = Html::parse_document(&body);
@@ -72,7 +72,7 @@ pub fn get_period_urls(url: &str, options: &ScraperOptions) -> io::Result<Vec<St
 pub fn get_issue_urls_in_period(url: &str, options: &ScraperOptions) -> io::Result<Vec<String>> {
     let mut ret = Vec::new();
 
-    let res = try_download(&url, options.download_attempts)?;
+    let res = try_download(url, options.download_attempts)?;
     let body = res.text().to_result()?;
     let doc = Html::parse_document(&body);
 

@@ -28,6 +28,12 @@ impl TocEntry {
     }
 }
 
+impl Default for TableOfContents {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TableOfContents {
     pub fn new() -> TableOfContents {
         TableOfContents {
@@ -124,63 +130,85 @@ fn create_pdf_internal(
 
     // Add page for each image
     let mut pages = vec![];
-    let paths = fs::read_dir(image_dir)?;
-    for path in paths {
-        if let Ok(p) = path {
-            let name = p.file_name().into_string().unwrap();
+    let mut entries: Vec<_> = fs::read_dir(image_dir)?
+        .collect::<io::Result<_>>()?;
+    entries.sort_by_key(|e| e.file_name());
+    for p in entries {
+        let name = p.file_name().into_string().map_err(|file_name| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("image filename is not valid UTF-8: {:?}", file_name),
+            )
+        })?;
 
-            if let Ok(stream) = lopdf::xobject::image(p.path().as_os_str().to_str().unwrap()) {
-                let content = Content {
-                    operations: Vec::<Operation>::new(),
-                };
-                let content_id =
-                    doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+        let image_path = p.path();
+        let image_path_str = image_path.to_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("image path is not valid UTF-8: {:?}", image_path),
+            )
+        })?;
 
-                let mut width: i64 = 800;
-                let mut height: i64 = 1100;
-                if let Object::Integer(a) = stream.dict.get("Width".as_bytes()).unwrap() {
-                    width = *a;
-                }
-                if let Object::Integer(a) = stream.dict.get("Height".as_bytes()).unwrap() {
-                    height = *a;
-                }
+        let stream = lopdf::xobject::image(image_path_str).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("failed to load image '{}': {e}", name),
+            )
+        })?;
+        let content = Content {
+            operations: Vec::<Operation>::new(),
+        };
+        let encoded_content = content.encode().map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("failed to encode PDF content stream for {}: {e}", name),
+            )
+        })?;
+        let content_id = doc.add_object(Stream::new(dictionary! {}, encoded_content));
 
-                let image_filename = doc.add_object(dictionary! {
-                    "Type" => "Page",
-                    "Parent" => pages_id,
-                    "Contents" => content_id,
-                    "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
-                });
+        let mut width: i64 = 800;
+        let mut height: i64 = 1100;
+        if let Ok(Object::Integer(a)) = stream.dict.get("Width".as_bytes()) {
+            width = *a;
+        }
+        if let Ok(Object::Integer(a)) = stream.dict.get("Height".as_bytes()) {
+            height = *a;
+        }
 
-                let result = doc.insert_image(
+        let image_filename = doc.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "Contents" => content_id,
+            "MediaBox" => vec![0.into(), 0.into(), width.into(), height.into()],
+        });
+
+        doc.insert_image(
+            image_filename,
+            stream,
+            (0., 0.),
+            (width as f32, height as f32),
+        )
+        .map_err(|err| {
+            io::Error::other(format!("failed to insert image '{name}' into PDF: {err}"))
+        })?;
+
+        pages.push(image_filename.into());
+
+        // Check for TOC entry for this page
+        if let Some(t) = toc {
+            if let Some(value) = t.get_page_info(&name) {
+                let b = Bookmark::new(
+                    value.page_title.clone(),
+                    value.color,
+                    value.format,
                     image_filename,
-                    stream,
-                    (0., 0.),
-                    (width as f32, height as f32),
                 );
-                if result.is_err() {
-                    println!("error!: {name}")
-                }
-
-                pages.push(image_filename.into());
-
-                // Check for TOC entry for this page
-                if let Some(t) = toc {
-                    if let Some(value) = t.get_page_info(&name) {
-                        let b = Bookmark::new(
-                            value.page_title.clone(),
-                            value.color,
-                            value.format,
-                            image_filename,
-                        );
-                        doc.add_bookmark(b, None);
-                    }
-                }
-
-                //TODO: links in page
-                //Note: may need to download image without setting "w=3000" first in order to scale coordinates
+                doc.add_bookmark(b, None);
             }
         }
+
+        //TODO: links in page
+        //Note: may need to download image without setting "w=3000" first in order to scale coordinates
     }
 
     // Finalize and save document
