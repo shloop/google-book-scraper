@@ -16,7 +16,7 @@ Use of this tool is at your own risk.
 
 A portable Windows x64 release is provided in the [releases](https://github.com/shloop/google-book-scraper/releases) section. Alternatively, if you and have a [Rust development environment](https://www.rust-lang.org/tools/install) set up, you can install with Cargo by simply running:
 
-```
+```bash
 cargo install google-book-scraper
 ```
 
@@ -24,9 +24,10 @@ cargo install google-book-scraper
 
 To download a single book or issue of a magazine as a PDF to the current directory, provide its URL as a command line argument.
 
-```
+```bash
 gbscraper <URL>
 ```
+
 > [!NOTE]
 > In some shells you may need to wrap the URL in quotes.
 
@@ -38,11 +39,12 @@ When downloading a lot of issues it is recommended to use the archive option (`-
 
 For example:
 
-```
+```bash
 gbscraper -m full -a archive.txt <URL>
 ```
 
 ### All Options
+
 ```
 Usage: gbscraper.exe [OPTIONS] <URL>
 
