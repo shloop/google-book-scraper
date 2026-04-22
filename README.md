@@ -14,7 +14,7 @@ Use of this tool is at your own risk.
 
 ### Installation
 
-A portable Windows x64 release is provided in the [releases](https://github.com/shloop/google-book-scraper/releases) section. Alternatively, if you and have a [Rust development environment](https://www.rust-lang.org/tools/install) set up, you can install with Cargo by simply running:
+Portable releases are provided in the [releases](https://github.com/shloop/google-book-scraper/releases) section. Alternatively, if you and have a [Rust development environment](https://www.rust-lang.org/tools/install) set up, you can install with Cargo by simply running:
 
 ```bash
 cargo install google-book-scraper
