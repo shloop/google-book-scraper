@@ -20,6 +20,15 @@ Portable releases are provided in the [releases](https://github.com/shloop/googl
 cargo install google-book-scraper
 ```
 
+#### macOS (Homebrew)
+
+On macOS (Apple Silicon), you can install via [Homebrew](https://brew.sh) using the `shloop/tap` tap:
+
+```
+brew tap shloop/tap
+brew install gbscraper
+```
+
 ### Basic Usage
 
 To download a single book or issue of a magazine as a PDF to the current directory, provide its URL as a command line argument.
