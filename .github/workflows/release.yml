@@ -100,7 +100,7 @@ jobs:
     needs: prepare
 
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
