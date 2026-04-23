@@ -57,12 +57,18 @@ jobs:
             final: "google-book-scraper-${VERSION#v}-linux-arm64.tar.gz"
     runs-on: ${{ matrix.platform.os }}
     steps:
-    - name: Print
-      run: |
-        echo $VERSION
-        echo ${VERSION#v}
-        echo ${VERSION:1}
-        echo ${{ matrix.platform.final }}
+      - name: Dump env
+        run: env | sort
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+      - name: Print
+        run: |
+          echo $VERSION
+          echo ${VERSION#v}
+          echo ${VERSION:1}
+          echo ${{ matrix.platform.final }}
 
   homebrew-releaser:
     runs-on: ubuntu-latest
