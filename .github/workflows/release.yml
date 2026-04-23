@@ -112,7 +112,7 @@ jobs:
       env:
         CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
-  publis_homebrew:
+  publish_homebrew:
     runs-on: ubuntu-latest
     needs: build
     name: Publish to brew tap
