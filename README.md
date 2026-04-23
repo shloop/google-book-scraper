@@ -26,7 +26,7 @@ brew install shloop/tap/google-book-scraper
 
 #### Cargo
 
-If you and have a [Rust development environment](https://www.rust-lang.org/tools/install) set up, you can install by executing:
+If you have a [Rust development environment](https://www.rust-lang.org/tools/install) set up, you can install by executing:
 
 ```bash
 cargo install google-book-scraper
