@@ -10,7 +10,8 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
-  VERSION: ${{ github.ref_name }}
+  # VERSION: ${{ github.ref_name }}
+  VERSION: ${{ github.event.release.tag_name }}
 
 jobs:
 
@@ -102,3 +103,31 @@ jobs:
     - run: cargo publish
       env:
         CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  homebrew-releaser:
+    runs-on: ubuntu-latest
+    needs: build
+    name: homebrew-releaser
+    steps:
+      - name: Release project to Homebrew tap
+        uses: Justintime50/homebrew-releaser@v3
+        with:
+          # The name of the homebrew tap to publish your formula to as it appears on GitHub (Homebrew taps must start with `homebrew-`).
+          # Required - strings
+          homebrew_owner: shloop
+          homebrew_tap: homebrew-tap
+
+          # The Personal Access Token (saved as a repo secret) that has `repo` permissions for the repo running the action AND Homebrew tap you want to release to.
+          # Required - string
+          github_token: ${{ secrets.TAP_TOKEN }}
+
+          target_darwin_amd64: true
+          target_darwin_arm64: true
+          target_linux_amd64: true
+          target_linux_arm64: true
+          
+          # Install command for your formula.
+          # Required - string
+          install: 'bin.install "gbscraper"'
+
+          update_readme_table: true
