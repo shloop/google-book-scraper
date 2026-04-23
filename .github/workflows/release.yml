@@ -10,8 +10,10 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
+  VERSION: ${{ github.ref_name }}
 
 jobs:
+
   build:
     name: Build binaries and upload to release
     strategy:
@@ -21,41 +23,46 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
-            final: gbscraper-windows-x86_64.zip
+            final: google-book-scraper-$VERSION-windows-amd64.zip
           - os_name: Windows-i686
             os: windows-latest
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
-            final: gbscraper-windows-i686.zip
+            final: google-book-scraper-$VERSION-windows-i686.zip
           - os_name: Windows-aarch64
             os: windows-latest
             target: aarch64-pc-windows-msvc
             bin: gbscraper.exe
-            final: gbscraper-windows-aarch64.zip
+            final: google-book-scraper-$VERSION-windows-arm64.zip
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
             bin: gbscraper
-            final: gbscraper-apple-darwin-x86_64.tar.gz
+            final: google-book-scraper-$VERSION-darwin-amd64.tar.gz
           - os_name: macOS-aarch64
             os: macOS-latest
             target: aarch64-apple-darwin
             bin: gbscraper
-            final: gbscraper-apple-darwin-aarch64.tar.gz
+            final: google-book-scraper-$VERSION-darwin-arm64.tar.gz
           - os_name: Linux-x86_64
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             bin: gbscraper
-            final: gbscraper-linux-x86_64.tar.gz
+            final: google-book-scraper-$VERSION-linux-amd64.tar.gz
           # - os_name: Linux-i686
           #   os: ubuntu-latest
           #   target: i686-unknown-linux-gnu
           #   bin: gbscraper
           #   final: gbscraper-linux-i686.tar.gz
+          - os_name: Linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            bin: gbscraper
+            final: google-book-scraper-$VERSION-linux-arm64.tar.gz
     runs-on: ${{ matrix.platform.os }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Build - ${{ matrix.platform.os_name }}
       run: |
         rustup target add ${{matrix.platform.target}}
@@ -81,6 +88,7 @@ jobs:
     - name: Release
       run:
         gh release upload ${{ github.event.release.tag_name }} ${{ matrix.platform.final }}
+
   publish_crate:
     name: Publish to crates.io
     runs-on: ubuntu-latest

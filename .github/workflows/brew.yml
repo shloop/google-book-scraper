@@ -27,7 +27,7 @@ jobs:
           target_darwin_amd64: true
           target_darwin_arm64: true
           target_linux_amd64: true
-          target_linux_arm64: false
+          target_linux_arm64: true
           
           # Install command for your formula.
           # Required - string
