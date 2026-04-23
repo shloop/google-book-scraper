@@ -20,51 +20,60 @@ jobs:
     strategy:
       matrix:
         platform: 
-          - os_name: Windows-x86_64
-            os: windows-latest
+          - name: Windows-x86_64
+            runs_on: windows-latest
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
-            final: "google-book-scraper-${VERSION#v}-windows-amd64.zip"
-          - os_name: Windows-i686
-            os: windows-latest
+            filename: "google-book-scraper-${VERSION#v}-windows-amd64.zip"
+          - name: Windows-i686
+            runs_on: windows-latest
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
-            final: "google-book-scraper-${VERSION#v}-windows-i686.zip"
-          - os_name: Windows-aarch64
-            os: windows-latest
+            filename: "google-book-scraper-${VERSION#v}-windows-i686.zip"
+          - name: Windows-aarch64
+            runs_on: windows-latest
             target: aarch64-pc-windows-msvc
             bin: gbscraper.exe
-            final: "google-book-scraper-${VERSION#v}-windows-arm64.zip"
-          - os_name: macOS-x86_64
-            os: macOS-latest
+            filename: "google-book-scraper-${VERSION#v}-windows-arm64.zip"
+          - name: macOS-x86_64
+            runs_on: macOS-latest
             target: x86_64-apple-darwin
             bin: gbscraper
-            final: "google-book-scraper-${VERSION#v}-darwin-amd64.tar.gz"
-          - os_name: macOS-aarch64
-            os: macOS-latest
+            filename: "google-book-scraper-${VERSION#v}-darwin-amd64.tar.gz"
+          - name: macOS-aarch64
+            runs_on: macOS-latest
             target: aarch64-apple-darwin
             bin: gbscraper
-            final: "google-book-scraper-${VERSION#v}-darwin-arm64.tar.gz"
-          - os_name: Linux-x86_64
-            os: ubuntu-latest
+            filename: "google-book-scraper-${VERSION#v}-darwin-arm64.tar.gz"
+          - name: Linux-x86_64
+            runs_on: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             bin: gbscraper
-            final: "google-book-scraper-${VERSION#v}-linux-amd64.tar.gz"
-          # - os_name: Linux-i686
-          #   os: ubuntu-latest
-          #   target: i686-unknown-linux-gnu
-          #   bin: gbscraper
-          #   final:  "google-book-scraper-$VERSION-linux-i686.tar.gz"
-          # - os_name: Linux-aarch64
-          #   os: ubuntu-latest
-          #   target: aarch64-unknown-linux-gnu
-          #   bin: gbscraper
-          #   final: "google-book-scraper-$VERSION-linux-arm64.tar.gz"
-    runs-on: ${{ matrix.platform.os }}
+            filename: "google-book-scraper-${VERSION#v}-linux-amd64.tar.gz"
+          - name: Linux-i686
+            runs_on: ubuntu-latest
+            target: i686-unknown-linux-gnu
+            bin: gbscraper
+            filename:  "google-book-scraper-$VERSION-linux-i686.tar.gz"
+          - name: Linux-aarch64
+            runs_on: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            bin: gbscraper
+            filename: "google-book-scraper-${VERSION#v}-linux-arm64.tar.gz"
+    runs-on: ${{ matrix.platform.runs_on }}
     steps:
     - name: Checkout
       uses: actions/checkout@v6
-    - name: Build - ${{ matrix.platform.os_name }}
+    - name: Configure
+      if: matrix.platform.name == 'Linux-i686'
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt update
+        sudo apt install gcc-multilib g++-multilib libssl-dev:i386 pkg-config 
+        export PKG_CONFIG_ALLOW_CROSS=1
+        export OPENSSL_LIB_DIR=/usr/lib/i386-linux-gnu/
+        export OPENSSL_INCLUDE_DIR=/usr/include/openssl/
+    - name: Build - ${{ matrix.platform.name }}
       run: |
         rustup target add ${{ matrix.platform.target }}
         cargo build --release --target ${{ matrix.platform.target }}
@@ -77,18 +86,18 @@ jobs:
         cp attribution.txt publish
         mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
     - name: Archive (.zip)
-      if: matrix.platform.os == 'windows-latest'
+      if: matrix.platform.runs_on == 'windows-latest'
       run: |
         cd publish
-        7z a ../${{ matrix.platform.final }} *
+        7z a ../${{ matrix.platform.filename }} *
     - name: Archive (.tar.gz)
-      if: matrix.platform.os != 'windows-latest'
+      if: matrix.platform.runs_on != 'windows-latest'
       run: |
         cd publish
-        tar cvzf ../${{ matrix.platform.final }} *
+        tar cvzf ../${{ matrix.platform.filename }} *
     - name: Release
       run:
-        gh release upload ${{ github.event.release.tag_name }} ${{ matrix.platform.final }}
+        gh release upload ${{ github.event.release.tag_name }} ${{ matrix.platform.filename }}
 
   publish_crate:
     name: Publish to crates.io
