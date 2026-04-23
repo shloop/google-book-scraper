@@ -54,7 +54,7 @@ jobs:
           #   bin: gbscraper
           #   final:  "google-book-scraper-$VERSION-linux-i686.tar.gz"
           - os_name: Linux-aarch64
-            os: macOS-latest
+            os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             bin: gbscraper
             final: "google-book-scraper-$VERSION-linux-arm64.tar.gz"
