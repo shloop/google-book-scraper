@@ -112,20 +112,20 @@ jobs:
       env:
         CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
-  # publish_homebrew:
-  #   runs-on: ubuntu-latest
-  #   needs: build
-  #   name: Publish to brew tap
-  #   steps:
-  #     - name: Release project to Homebrew tap
-  #       uses: Justintime50/homebrew-releaser@v3
-  #       with:
-  #         homebrew_owner: shloop
-  #         homebrew_tap: homebrew-tap
-  #         github_token: ${{ secrets.TAP_TOKEN }}
-  #         target_darwin_amd64: true
-  #         target_darwin_arm64: true
-  #         target_linux_amd64: true
-  #         target_linux_arm64: true
-  #         install: 'bin.install "gbscraper"'
-  #         update_readme_table: true
+  publish_homebrew:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Publish to brew tap
+    steps:
+      - name: Release project to Homebrew tap
+        uses: Justintime50/homebrew-releaser@v3
+        with:
+          homebrew_owner: shloop
+          homebrew_tap: homebrew-tap
+          github_token: ${{ secrets.TAP_TOKEN }}
+          target_darwin_amd64: true
+          target_darwin_arm64: true
+          target_linux_amd64: true
+          target_linux_arm64: true
+          install: 'bin.install "gbscraper"'
+          update_readme_table: true
