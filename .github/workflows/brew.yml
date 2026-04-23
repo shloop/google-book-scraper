@@ -28,9 +28,11 @@ jobs:
           target_darwin_arm64: true
           target_linux_amd64: true
           target_linux_arm64: false
-
+          
           # Install command for your formula.
           # Required - string
-          install: 'bin.install gbscraper'
+          install: 'bin.install "gbscraper"'
+
           
+
           
