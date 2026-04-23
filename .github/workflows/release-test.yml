@@ -28,5 +28,8 @@ jobs:
     steps:
     - name: Print
       run: |
-        echo ${{ matrix.platform.filenameA }}
-        # echo ${{ matrix.platform.filenameB }}
+        echo "a $VERSION"
+        echo "b $env.VERSION"
+        echo "c $env:VERSION"
+        echo "d ${{ matrix.platform.filenameA }}"
+        echo "e ${{ matrix.platform.filenameB }}"
