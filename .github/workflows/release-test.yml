@@ -1,0 +1,68 @@
+name: Build_TEST
+
+on:
+  push:
+  pull_request:
+    branches: [ "brew_test" ]
+  
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ github.token }}
+  # VERSION: ${{ github.ref_name }}
+  VERSION: ${{ github.event.release.tag_name }}
+
+jobs:
+
+  build:
+    name: Build binaries and upload to release
+    strategy:
+      matrix:
+        platform: 
+          # - os_name: Windows-x86_64
+          #   os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   bin: gbscraper.exe
+          #   final: "google-book-scraper-${VERSION#v}-windows-amd64.zip"
+          # - os_name: Windows-i686
+          #   os: windows-latest
+          #   target: i686-pc-windows-msvc
+          #   bin: gbscraper.exe
+          #   final: "google-book-scraper-${VERSION#v}-windows-i686.zip"
+          # - os_name: Windows-aarch64
+          #   os: windows-latest
+          #   target: aarch64-pc-windows-msvc
+          #   bin: gbscraper.exe
+          #   final: "google-book-scraper-${VERSION#v}-windows-arm64.zip"
+          # - os_name: macOS-x86_64
+          #   os: macOS-latest
+          #   target: x86_64-apple-darwin
+          #   bin: gbscraper
+          #   final: "google-book-scraper-${VERSION#v}-darwin-amd64.tar.gz"
+          # - os_name: macOS-aarch64
+          #   os: macOS-latest
+          #   target: aarch64-apple-darwin
+          #   bin: gbscraper
+          #   final: "google-book-scraper-${VERSION#v}-darwin-arm64.tar.gz"
+          # - os_name: Linux-x86_64
+          #   os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   bin: gbscraper
+          #   final: "google-book-scraper-${VERSION#v}-linux-amd64.tar.gz"
+          - os_name: Linux-i686
+            os: macOS-latest
+            target: i686-unknown-linux-gnu
+            bin: gbscraper
+            final:  "google-book-scraper-$VERSION-linux-i686.tar.gz"
+          - os_name: Linux-aarch64
+            os: macOS-latest
+            target: aarch64-unknown-linux-gnu
+            bin: gbscraper
+            final: "google-book-scraper-$VERSION-linux-arm64.tar.gz"
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+    - name: Build - ${{ matrix.platform.os_name }}
+      run: |
+        rustup target add ${{ matrix.platform.target }}
+        cargo build --release --target ${{ matrix.platform.target }}
