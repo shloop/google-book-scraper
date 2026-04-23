@@ -23,7 +23,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
             filenameA: "google-book-scraper-$('${{ github.ref_name }}'.Substring(1))-windows-amd64.zip"
-            filenameB: "google-book-scraper-$($VERSION.Substring(1))-windows-amd64.zip"
+            filenameB: "google-book-scraper-$($env:VERSION.Substring(1))-windows-amd64.zip"
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
     - name: Print
