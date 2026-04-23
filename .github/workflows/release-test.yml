@@ -22,9 +22,11 @@ jobs:
             runs_on: windows-latest
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-$($VERSION.Substring(1))-windows-amd64.zip"
+            filenameA: "google-book-scraper-$('${{ github.event.release.tag_name }}'.Substring(1))-windows-amd64.zip"
+            # filenameB: "google-book-scraper-$($VERSION.Substring(1))-windows-amd64.zip"
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
     - name: Print
       run: |
-        echo ${{ matrix.platform.filename }}
+        echo ${{ matrix.platform.filenameA }}
+        # echo ${{ matrix.platform.filenameB }}
