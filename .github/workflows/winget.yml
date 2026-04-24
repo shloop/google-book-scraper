@@ -37,7 +37,7 @@ jobs:
         VERSION: 0.3.8
         ARCH: ${{ matrix.platform.arch }}
       run: |
-        cp target/gbscraper.exe .
+        cp target/release/gbscraper.exe .
         iscc /O"." /F"${{ matrix.platform.filename }}" installer.iss
     - name: Release
       run: |
