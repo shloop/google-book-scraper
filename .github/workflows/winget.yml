@@ -8,6 +8,9 @@ env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
 
+permissions:
+  contents: write
+
 jobs:
 
   build_installers:
