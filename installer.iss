@@ -10,6 +10,7 @@ DefaultGroupName=gbscraper
 ArchitecturesAllowed="{#GetEnv('ARCH')}"
 ; ArchitecturesAllowed=x64compatible and not arm64
 ArchitecturesInstallIn64BitMode=arm64 x64compatible
+Compression=zip
 
 [Files]
 Source: "gbscraper.exe"; DestDir: "{app}"
