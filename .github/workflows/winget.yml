@@ -15,14 +15,14 @@ jobs:
             arch: x64compatible and not arm64
             target: x86_64-pc-windows-msvc
             filename: google-book-scraper-0.3.8-windows-x64-installer
-          - name: Windows-i686
-            arch: x86compatible and not x64compatible
-            target: i686-pc-windows-msvc
-            filename: google-book-scraper-0.3.8-windows-x86-installer
-          - name: Windows-aarch64
-            arch: arm64
-            target: aarch64-pc-windows-msvc
-            filename: google-book-scraper-0.3.8-windows-arm64-installer
+          # - name: Windows-i686
+          #   arch: x86compatible and not x64compatible
+          #   target: i686-pc-windows-msvc
+          #   filename: google-book-scraper-0.3.8-windows-x86-installer
+          # - name: Windows-aarch64
+          #   arch: arm64
+          #   target: aarch64-pc-windows-msvc
+          #   filename: google-book-scraper-0.3.8-windows-arm64-installer
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -37,7 +37,7 @@ jobs:
         VERSION: 0.3.8
         ARCH: ${{ matrix.platform.arch }}
       run: |
-        cp target/release/gbscraper.exe .
+        cp target/${{ matrix.platform.target }}/release/gbscraper.exe .
         iscc /O"." /F"${{ matrix.platform.filename }}" installer.iss
     - name: Release
       run: |
