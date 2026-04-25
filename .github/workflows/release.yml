@@ -56,9 +56,15 @@ jobs:
 
       - name: Update attribution
         if: steps.check_tag.outputs.exists != 'true'
+        # Ignore errors from lichking
+        continue-on-error: true
         run: |
           cargo install cargo-lichking
           cargo lichking bundle > attribution.txt
+
+      - name: Commit changes
+        if: steps.check_tag.outputs.exists != 'true'
+        run: |
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
