@@ -19,21 +19,17 @@ env:
   
 jobs:
 
-  bash_test:
-    runs-on: ubuntu_slim
-    steps:
-      - name: blah
-        run: |
-          echo "TAG: $TAG"
-          echo "VERSION: $VERSION"
-
   # Step 1: Update version number and dependency attribution in files
 
   prepare:
     name: Prepare
-    needs: bash_test
     runs-on: ubuntu-latest
     steps:
+
+      - name: env test
+        run: |
+          echo "TAG: $TAG"
+          echo "VERSION: $VERSION"
       - name: Checkout
         uses: actions/checkout@v6
 
