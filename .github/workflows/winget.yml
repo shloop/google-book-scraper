@@ -19,11 +19,11 @@ jobs:
       matrix:
         platform: 
           - name: Windows-x86_64
-            arch: x64compatible and not arm64
+            arch: x64compatible
             target: x86_64-pc-windows-msvc
             filename: google-book-scraper-0.3.8-windows-x64-installer
           - name: Windows-i686
-            arch: x86compatible and not x64compatible
+            arch: x86compatible
             target: i686-pc-windows-msvc
             filename: google-book-scraper-0.3.8-windows-x86-installer
           - name: Windows-aarch64
@@ -52,12 +52,3 @@ jobs:
       run: |
         gh release upload v0.3.8 ${{ matrix.platform.filename }}.exe
 
-  # publish:
-  #   runs-on: windows-latest
-  #   needs: build_installers
-  #   steps:
-  #     - uses: vedantmgoyal9/winget-releaser@main
-  #       with:
-  #         identifier: shloop.gbscraper
-  #         installers-regex: '\.exe$' # Only .exe files
-  #         token: ${{ secrets.WINGET_TOKEN }}
