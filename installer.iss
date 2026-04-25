@@ -8,7 +8,6 @@ AppSupportURL=https://github.com/shloop/google-book-scraper/issues
 DefaultDirName={autopf}\gbscraper
 DefaultGroupName=gbscraper
 ArchitecturesAllowed="{#GetEnv('ARCH')}"
-; ArchitecturesAllowed=x64compatible and not arm64
 ArchitecturesInstallIn64BitMode=arm64 x64compatible
 Compression=zip
 
