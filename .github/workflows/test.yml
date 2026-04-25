@@ -3,7 +3,7 @@ name: Test
 on: 
   push:
     branches: 
-      - winget_upload
+      - main
   pull_request:
 
 env:

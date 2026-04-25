@@ -20,7 +20,7 @@ env:
 jobs:
 
   bash_test:
-    runs-on: windows_latest
+    runs-on: ubuntu_slim
     steps:
       - name: blah
         run: |
