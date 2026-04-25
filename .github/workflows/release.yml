@@ -170,7 +170,7 @@ jobs:
 
     - name: Configure Build (Windows)
       if: matrix.platform.runs_on == 'windows-latest'
-      run: echo "RUSTFLAGS='-Ctarget-feature=+crt-static'" >> $GITHUB_ENV
+      run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $GITHUB_ENV
 
     - name: Build
       run: |
