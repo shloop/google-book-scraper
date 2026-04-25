@@ -30,6 +30,9 @@ jobs:
       release: ${{ steps.result.outputs.result }}
     steps:
 
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Get version from Cargo.toml
         id: check_version
         run: |
@@ -50,10 +53,6 @@ jobs:
         uses: mukunku/tag-exists-action@v1.7.0
         with: 
           tag: 'v$VERSION'
-
-      - name: Checkout
-        if: steps.check_tag.outputs.exists != 'true'
-        uses: actions/checkout@v6
 
       - name: Update attribution
         if: steps.check_tag.outputs.exists != 'true'
