@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     branches: [ "winget_upload" ]
+    paths-ignore: 
+      - attribution.txt
     
 permissions:
   contents: write
@@ -14,48 +16,68 @@ defaults:
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
-  TAG: ${{ github.ref_name }}
   
 jobs:
 
-  # Step 1: Update version number and dependency attribution in files
+  # Step 1: Check if this is new version and do any needed updates
 
   prepare:
-    name: Prepare
+    name: Version Check
     runs-on: ubuntu-latest
-    env:
-      VERSION: "${TAG#v}"
+    outputs:
+      version: ${{ steps.check_version.outputs.version }}
+      tag: ${{ steps.check_version.outputs.tag }}
+      release: ${{ steps.result.outputs.result }}
     steps:
 
-      - name: env test
+      - name: Get version from Cargo.toml
+        id: check_version
         run: |
-          echo "TAG: $TAG"
-          echo "VERSION: $VERSION"
+          cargo install cargo-get
+
+          VERSION=$(cargo get package.version)
+
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          TAG="v$VERSION"
+
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release tag already exists
+        id: check_tag
+        uses: mukunku/tag-exists-action@v1.7.0
+        with: 
+          tag: 'v$VERSION'
+
       - name: Checkout
+        if: steps.check_tag.outputs.exists != 'true'
         uses: actions/checkout@v6
 
-      - name: Update Cargo.toml
-        run: |
-          sed -i '' "s/^version = .*/version = \"${VERSION}\"/" Cargo.toml
-
       - name: Update attribution
+        if: steps.check_tag.outputs.exists != 'true'
         run: |
           cargo install cargo-lichking
           cargo lichking bundle > attribution.txt
-
-      - name: Update repo
-        run: |
-          git add Cargo.toml
           git add attribution.txt
-          git commit -m 'auto-update Cargo.toml and attribution.txt'
+          git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
+
+      - name: Set Result
+        id: result
+        if: steps.check_tag.outputs.exists != 'true'
+        run: echo "result=true" >> "$GITHUB_OUTPUT"
 
   # Step 2: Build binaries/installers
 
   build:
     name: Build
     needs: prepare
+    if: needs.prepare.outputs.release == 'true'
     runs-on: ${{ matrix.platform.runs_on }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     strategy:
       matrix:
         platform: 
