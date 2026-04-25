@@ -1,6 +1,9 @@
 name: Test
 
 on: 
+  push:
+    branches: 
+      - winget_upload
   pull_request:
 
 env:
