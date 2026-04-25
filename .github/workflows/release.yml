@@ -15,7 +15,6 @@ env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
   TAG: ${{ github.ref_name }}
-  VERSION: "${TAG#v}"
   
 jobs:
 
@@ -24,6 +23,8 @@ jobs:
   prepare:
     name: Prepare
     runs-on: ubuntu-latest
+    env:
+      VERSION: "${TAG#v}"
     steps:
 
       - name: env test
