@@ -35,6 +35,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
     - name: Build - ${{ matrix.platform.name }}
+      env:
+        RUSTFLAGS: -C target-feature=+crt-static
       run: |
         rustup target add ${{ matrix.platform.target }}
         cargo build --release --target ${{ matrix.platform.target }}
