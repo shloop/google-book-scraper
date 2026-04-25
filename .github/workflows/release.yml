@@ -1,69 +1,140 @@
 name: Release
-
+  
 on:
-  release:
-    types: [published]
+  push:
+    tags: [ "v*" ]
+    # branches: [ "main" ]
+    branches: [ "winget_upload" ]
     
 permissions:
   contents: write
-  
+
+defaults:
+  run:
+    shell: bash
+
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
-  VERSION: ${{ github.event.release.tag_name }}
-
+  TAG: ${{ github.ref_name }}
+  VERSION: "${TAG#v}"
+  
 jobs:
 
+  bash_test:
+    runs-on: windows_latest
+    steps:
+      - name: blah
+        run: |
+          echo "TAG: $TAG"
+          echo "VERSION: $VERSION"
+
+  # Step 1: Update version number and dependency attribution in files
+
+  prepare:
+    name: Prepare
+    needs: bash_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Update Cargo.toml
+        run: |
+          sed -i '' "s/^version = .*/version = \"${VERSION}\"/" Cargo.toml
+
+      - name: Update attribution
+        run: |
+          cargo install cargo-lichking
+          cargo lichking bundle > attribution.txt
+
+      - name: Update repo
+        run: |
+          git add Cargo.toml
+          git add attribution.txt
+          git commit -m 'auto-update Cargo.toml and attribution.txt'
+          git push
+
+  # Step 2: Build binaries/installers
+
   build:
-    name: Build and upload binaries
+    name: Build
+    needs: prepare
+    runs-on: ${{ matrix.platform.runs_on }}
     strategy:
       matrix:
         platform: 
-          - name: Windows-x86_64
-            runs_on: windows-latest
-            target: x86_64-pc-windows-msvc
-            bin: gbscraper.exe
-            filename: "google-book-scraper-$($env:VERSION.Substring(1))-windows-amd64.zip"
+
+          # Run job independently for each target platform
+          # Best results when compiling on the target platform (or at least the target OS)
+
+          # Windows 32-bit
           - name: Windows-i686
             runs_on: windows-latest
+            arch: x86compatible and not x64compatible
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-$($env:VERSION.Substring(1))-windows-i686.zip"
+            filename: "google-book-scraper-${VERSION}-windows-x86"
+
+          # Windows 64-bit (x86)
+          - name: Windows-x86_64
+            runs_on: windows-latest
+            arch: x64compatible and not arm64
+            target: x86_64-pc-windows-msvc
+            bin: gbscraper.exe
+            filename: "google-book-scraper-${VERSION}-windows-x64"
+
+          # Windows ARM 64-bit
           - name: Windows-aarch64
             runs_on: windows-latest
+            arch: arm64
             target: aarch64-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-$($env:VERSION.Substring(1))-windows-arm64.zip"
+            filename: "google-book-scraper-${VERSION}-windows-arm64"
+
+          # MacOS Intel 64-bit
           - name: macOS-x86_64
             runs_on: macOS-latest
             target: x86_64-apple-darwin
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-darwin-amd64.tar.gz"
+            filename: "google-book-scraper-${VERSION}-darwin-amd64.tar.gz"
+
+          # MacOS ARM 64-bit
           - name: macOS-aarch64
             runs_on: macOS-latest
             target: aarch64-apple-darwin
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-darwin-arm64.tar.gz"
-          - name: Linux-x86_64
-            runs_on: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-linux-amd64.tar.gz"
+            filename: "google-book-scraper-${VERSION}-darwin-arm64.tar.gz"
+
+          # Linux 32-bit  
           - name: Linux-i686
             runs_on: ubuntu-latest
             target: i686-unknown-linux-gnu
             bin: gbscraper
-            filename:  "google-book-scraper-${VERSION#v}-linux-i686.tar.gz"
+            filename:  "google-book-scraper-${VERSION}-linux-i686.tar.gz"
+
+          # Linux 64-bit (x86)
+          - name: Linux-x86_64
+            runs_on: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: gbscraper
+            filename: "google-book-scraper-${VERSION}-linux-amd64.tar.gz"
+
+          # Linux ARM 64-bit
           - name: Linux-aarch64
             runs_on: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-linux-arm64.tar.gz"
-    runs-on: ${{ matrix.platform.runs_on }}
+            filename: "google-book-scraper-${VERSION}-linux-arm64.tar.gz"
+
     steps:
+
     - name: Checkout
       uses: actions/checkout@v6
-    - name: Configure
+      with:
+        ref: 'winget_upload'
+
+    - name: Configure Build (x86 Linux)
       if: matrix.platform.name == 'Linux-i686'
       run: |
         sudo dpkg --add-architecture i386
@@ -72,60 +143,128 @@ jobs:
         echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
         echo "OPENSSL_LIB_DIR=/usr/lib/i386-linux-gnu/" >> $GITHUB_ENV
         echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl/" >> $GITHUB_ENV
-    - name: Build - ${{ matrix.platform.name }}
+
+    - name: Configure Build (Windows)
+      if: matrix.platform.runs_on == 'windows-latest'
+      run: echo "RUSTFLAGS=\"-C target-feature=+crt-static\"" >> $GITHUB_ENV
+
+    - name: Build
       run: |
+        # Build
         rustup target add ${{ matrix.platform.target }}
         cargo build --release --target ${{ matrix.platform.target }}
-    - name: Archive prep
-      run: |
+        
+        # Move/copy files needed for release
         mkdir publish
         cp README.md publish
         cp LICENSE-APACHE publish
         cp LICENSE-MIT publish
         cp attribution.txt publish
         mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
-    - name: Archive (.zip)
+
+    - name: Create release files (Windows)
       if: matrix.platform.runs_on == 'windows-latest'
+      env: 
+        # VERSION: 
+        ARCH: ${{ matrix.platform.arch }}
       run: |
         cd publish
-        7z a ../${{ matrix.platform.filename }} *
-    - name: Archive (.tar.gz)
+        7z a ../${{ matrix.platform.filename }}-portable.zip *
+        iscc /O"." /F"../${{ matrix.platform.filename }}-installer" ../installer.iss
+
+    - name: Create release files (Mac/Linux)
       if: matrix.platform.runs_on != 'windows-latest'
+      env: 
+        # VERSION: 
+        ARCH: ${{ matrix.platform.arch }}
       run: |
         cd publish
         tar cvzf ../${{ matrix.platform.filename }} *
-    - name: Release
-      run:
-        gh release upload ${{ github.event.release.tag_name }} ${{ matrix.platform.filename }}
 
-  publish_crate:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    # environment: release  # Optional: for enhanced security
-    permissions:
-      id-token: write
-    steps:
-    - uses: actions/checkout@v6
-    - uses: rust-lang/crates-io-auth-action@v1
-      id: auth
-    - run: cargo publish
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+    - name: Upload portable (Windows)
+      if: matrix.platform.runs_on == 'windows-latest'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.platform.filename }}-portable.zip
+        path: ${{ matrix.platform.filename }}-portable.zip
+        archive: false
 
-  publish_homebrew:
-    runs-on: ubuntu-latest
-    needs: build
-    name: Publish to brew tap
-    steps:
-      - name: Release project to Homebrew tap
-        uses: Justintime50/homebrew-releaser@v3
-        with:
-          homebrew_owner: shloop
-          homebrew_tap: homebrew-tap
-          github_token: ${{ secrets.TAP_TOKEN }}
-          target_darwin_amd64: true
-          target_darwin_arm64: true
-          target_linux_amd64: true
-          target_linux_arm64: true
-          install: 'bin.install "gbscraper"'
-          update_readme_table: true
+    - name: Upload portable (Mac/Linux)
+      if: matrix.platform.runs_on != 'windows-latest'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.platform.filename }}
+        path: ${{ matrix.platform.filename }}
+        archive: false
+
+    - name: Upload installer (Windows)
+      if: matrix.platform.runs_on == 'windows-latest'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.platform.filename }}-installer.exe
+        path: ${{ matrix.platform.filename }}-portable.exe
+        archive: false
+
+    # - name: Release
+    #   run:
+    #     gh release upload ${{ github.ref_name }} ${{ matrix.platform.filename }}
+
+  # # Step 3: Create release on GitHub
+
+  # create_release:
+  #   name: Create release
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: Download artifacts
+  #       run: # TODO
+  #     - name: Create release
+  #       run: gh release 
+  #       # **Full Changelog**: https://github.com/shloop/google-book-scraper/compare/v0.3.7...v0.3.8
+
+  # # Step 4: Publish to various code registries/package managers
+
+  # publish_crate:
+  #   name: Publish to crates.io
+  #   needs: create_release
+  #   runs-on: ubuntu-latest
+  #   # environment: release  # Optional: for enhanced security
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #   - uses: actions/checkout@v6
+  #   - uses: rust-lang/crates-io-auth-action@v1
+  #     id: auth
+  #   - run: cargo publish
+  #     env:
+  #       CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  # publish_homebrew:
+  #   name: Publish to brew tap
+  #   needs: create_release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Release project to Homebrew tap
+  #       uses: Justintime50/homebrew-releaser@v3
+  #       with:
+  #         homebrew_owner: shloop
+  #         homebrew_tap: homebrew-tap
+  #         github_token: ${{ secrets.TAP_TOKEN }}
+  #         target_darwin_amd64: true
+  #         target_darwin_arm64: true
+  #         target_linux_amd64: true
+  #         target_linux_arm64: true
+  #         install: 'bin.install "gbscraper"'
+  #         update_readme_table: true
+
+  # publish_winget:
+  #   name: Publish to WinGet
+  #   needs: create_release
+  #   runs-on: ubuntu-slim
+  #   steps:
+  #     - uses: vedantmgoyal9/winget-releaser@main
+  #       with:
+  #         identifier: shloop.gbscraper
+  #         installers-regex: '\.exe$' # Only .exe files
+  #         token: ${{ secrets.WINGET_TOKEN }}
