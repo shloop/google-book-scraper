@@ -24,6 +24,7 @@ jobs:
       version: ${{ steps.check_version.outputs.version }}
       tag: ${{ steps.check_version.outputs.tag }}
       release: ${{ steps.result.outputs.result }}
+      commit: ${{ steps.result.outputs.result }}
     steps:
 
       - name: Checkout
@@ -59,6 +60,7 @@ jobs:
           cargo lichking bundle > attribution.txt
 
       - name: Commit changes
+        id: commit
         if: steps.check_tag.outputs.exists != 'true'
         run: |
           git config user.name github-actions[bot]
@@ -66,6 +68,8 @@ jobs:
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
+          COMMIT=$(git rev-parse HEAD)
+          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
 
       - name: Set Result
         id: result
@@ -152,7 +156,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
       with:
-        ref: 'winget_upload'
+        ref: ${{ needs.prepare.outputs.commit }}
 
     - name: Configure Build (x86 Linux)
       if: matrix.platform.name == 'Linux-i686'
@@ -190,13 +194,10 @@ jobs:
       run: |
         cd publish
         7z a ../${{ matrix.platform.filename }}-portable.zip *
-        iscc /O"." /F"../${{ matrix.platform.filename }}-installer" ../installer.iss
+        iscc /O".." /F"${{ matrix.platform.filename }}-installer" ../installer.iss
 
     - name: Create release files (Mac/Linux)
       if: matrix.platform.runs_on != 'windows-latest'
-      env: 
-        # VERSION: 
-        ARCH: ${{ matrix.platform.arch }}
       run: |
         cd publish
         tar cvzf ../${{ matrix.platform.filename }} *
@@ -254,6 +255,8 @@ jobs:
   #     id-token: write
   #   steps:
   #   - uses: actions/checkout@v6
+  #     with:
+  #       ref: ${{ needs.prepare.outputs.commit }}
   #   - uses: rust-lang/crates-io-auth-action@v1
   #     id: auth
   #   - run: cargo publish
