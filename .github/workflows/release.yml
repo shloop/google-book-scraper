@@ -67,9 +67,8 @@ jobs:
 
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github ref v: ${{ github.ref }}"
-          echo "github ref e: $GITHUB_REF"
-          echo "github head ref: $GITHUB_HEAD_REF"
+          echo "github sha: ${{ github.sha }}"
+          echo "github ref: ${{ github.ref }}"
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -85,9 +84,8 @@ jobs:
 
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github ref v: ${{ github.ref }}"
-          echo "github ref e: $GITHUB_REF"
-          echo "github head ref: $GITHUB_HEAD_REF"
+          echo "github sha: ${{ github.sha }}"
+          echo "github ref: ${{ github.ref }}"
 
       - name: Set Result
         id: result
@@ -196,9 +194,8 @@ jobs:
 
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github ref v: ${{ github.ref }}"
-          echo "github ref e: $GITHUB_REF"
-          echo "github head ref: $GITHUB_HEAD_REF"
+          echo "github sha: ${{ github.sha }}"
+          echo "github ref: ${{ github.ref }}"
 
           # Build
           rustup target add ${{ matrix.platform.target }}
@@ -273,9 +270,8 @@ jobs:
 
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github ref v: ${{ github.ref }}"
-          echo "github ref e: $GITHUB_REF"
-          echo "github head ref: $GITHUB_HEAD_REF"
+          echo "github sha: ${{ github.sha }}"
+          echo "github ref: ${{ github.ref }}"
 
           gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
 
