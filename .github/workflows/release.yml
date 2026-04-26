@@ -76,7 +76,7 @@ jobs:
           git add attribution.txt
           
           # remove after testing
-          git date > timestamp.txt
+          date > timestamp.txt
           git add timestamp.txt
 
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
