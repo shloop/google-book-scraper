@@ -86,6 +86,8 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      COMMIT: ${{ needs.prepare.outputs.commit }}
     outputs:
       version: ${{ needs.prepare.outputs.version }}
       tag: ${{ needs.prepare.outputs.tag }}
@@ -229,7 +231,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.platform.filename }}-installer.exe
-        path: ${{ matrix.platform.filename }}-portable.exe
+        path: ${{ matrix.platform.filename }}-portable.zip
         archive: false
 
     # - name: Release
@@ -243,6 +245,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # if: github.ref == 'refs/heads/main'
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      TAG: ${{ needs.build.outputs.tag }}
+      COMMIT: ${{ needs.build.outputs.commit }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -252,7 +258,10 @@ jobs:
         with:
           path: dist
       - name: Create release
-        run: gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.commit }} -F release_notes.md -d ./dist/*
+        run: |
+          echo "using tag: $TAG"
+          echo "using commit: $COMMIT"
+          gh release create $TAG --target $COMMIT -F release_notes.md -d ./dist/*
 
   # # Step 4: Publish to various code registries/package managers
 
