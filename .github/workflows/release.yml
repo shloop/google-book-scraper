@@ -231,7 +231,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.platform.filename }}-installer.exe
-        path: ${{ matrix.platform.filename }}-portable.zip
+        path: ${{ matrix.platform.filename }}-installer.exe
         archive: false
 
     # - name: Release
