@@ -181,7 +181,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
       with:
-        ref: $GITHUB_REF 
+        ref: ${{ needs.prepare.outputs.branch }}
 
     - name: Configure Build (x86 Linux)
       if: matrix.platform.name == 'Linux-i686'
@@ -268,7 +268,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: $GITHUB_REF 
+          ref: ${{ needs.build.outputs.branch }} 
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
