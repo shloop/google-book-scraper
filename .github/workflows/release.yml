@@ -68,7 +68,7 @@ jobs:
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
-          COMMIT=$(git rev-parse HEAD)
+          COMMIT=$(git rev-parse --short HEAD)
           echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
 
       - name: Set Result
@@ -85,6 +85,10 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+    outputs:
+      version: ${{ needs.prepare.outputs.version }}
+      tag: ${{ needs.prepare.outputs.tag }}
+      commit: ${{ needs.prepare.outputs.commit }}
     strategy:
       matrix:
         platform: 
@@ -230,19 +234,23 @@ jobs:
     #   run:
     #     gh release upload ${{ github.ref_name }} ${{ matrix.platform.filename }}
 
-  # # Step 3: Create release on GitHub
+  # Step 3: Create release on GitHub
 
-  # create_release:
-  #   name: Create release
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main'
-  #   steps:
-  #     - name: Download artifacts
-  #       run: # TODO
-  #     - name: Create release
-  #       run: gh release 
-  #       # **Full Changelog**: https://github.com/shloop/google-book-scraper/compare/v0.3.7...v0.3.8
+  create_release:
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+    # if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+      - name: Create release
+        run: gh release create ${{ needs.build.outputs.tag }} -F release_notes.md -d ./dist/*
 
   # # Step 4: Publish to various code registries/package managers
 
