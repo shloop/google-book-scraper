@@ -71,6 +71,8 @@ jobs:
           # COMMIT=$(git rev-parse --short HEAD)
           COMMIT=$(git rev-parse HEAD)
           echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "COMMIT: $COMMIT"
+
 
       - name: Set Result
         id: result
@@ -160,6 +162,9 @@ jobs:
 
     steps:
 
+    - name: check commit
+      run: |
+        echo "COMMIT: $COMMIT"
     - name: Checkout
       uses: actions/checkout@v6
       with:
