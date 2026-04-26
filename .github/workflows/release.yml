@@ -26,21 +26,16 @@ jobs:
       tag: ${{ steps.check_version.outputs.tag }}
       branch: ${{ steps.check_version.outputs.branch }}
       release: ${{ steps.result.outputs.result }}
-      # commit: ${{ steps.result.outputs.commit }}
     steps:
 
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install dependencies
-        run: |
-          cargo install cargo-get
-          cargo install cargo-lichking
 
       - name: Get version from Cargo.toml
         id: check_version
         run: |
-          VERSION=$(cargo get package.version)
+          VERSION=$(cargo pkgid | cut -d "#" -f2)
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
@@ -61,7 +56,9 @@ jobs:
         if: steps.check_tag.outputs.exists != 'true'
         # Ignore errors from lichking
         continue-on-error: true
-        run: cargo lichking bundle > attribution.txt
+        run: |
+          cargo install cargo-lichking
+          cargo lichking bundle > attribution.txt
 
       - name: Commit changes
         id: commit
@@ -70,7 +67,8 @@ jobs:
 
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github ref: $GITHUB_REF"
+          echo "github ref v: ${{ github.ref }}"
+          echo "github ref e: $GITHUB_REF"
           echo "github head ref: $GITHUB_HEAD_REF"
 
           git config user.name github-actions[bot]
@@ -85,14 +83,10 @@ jobs:
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
 
-          # COMMIT=$(git rev-parse --short HEAD)
-          # COMMIT=$(git rev-parse HEAD)
-          # echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
-          # echo "COMMIT: $COMMIT"
-
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github ref: $GITHUB_REF"
+          echo "github ref v: ${{ github.ref }}"
+          echo "github ref e: $GITHUB_REF"
           echo "github head ref: $GITHUB_HEAD_REF"
 
       - name: Set Result
@@ -178,85 +172,86 @@ jobs:
 
     steps:
 
-    - name: Checkout
-      uses: actions/checkout@v6
-      with:
-        ref: ${{ needs.prepare.outputs.branch }}
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.branch }}
 
-    - name: Configure Build (x86 Linux)
-      if: matrix.platform.name == 'Linux-i686'
-      run: |
-        sudo dpkg --add-architecture i386
-        sudo apt update
-        sudo apt install gcc-multilib g++-multilib libssl-dev:i386 pkg-config 
-        echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-        echo "OPENSSL_LIB_DIR=/usr/lib/i386-linux-gnu/" >> $GITHUB_ENV
-        echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl/" >> $GITHUB_ENV
+      - name: Configure Build (x86 Linux)
+        if: matrix.platform.name == 'Linux-i686'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install gcc-multilib g++-multilib libssl-dev:i386 pkg-config 
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/i386-linux-gnu/" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl/" >> $GITHUB_ENV
 
-    - name: Configure Build (Windows)
-      if: matrix.platform.runs_on == 'windows-latest'
-      run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $GITHUB_ENV
+      - name: Configure Build (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $GITHUB_ENV
 
-    - name: Build
-      run: |
+      - name: Build
+        run: |
 
-        # remove after testing
-        echo "current commit: $(git rev-parse HEAD)"
-        echo "github ref: $GITHUB_REF"
-        echo "github head ref: $GITHUB_HEAD_REF"
+          # remove after testing
+          echo "current commit: $(git rev-parse HEAD)"
+          echo "github ref v: ${{ github.ref }}"
+          echo "github ref e: $GITHUB_REF"
+          echo "github head ref: $GITHUB_HEAD_REF"
 
-        # Build
-        rustup target add ${{ matrix.platform.target }}
-        cargo build --release --target ${{ matrix.platform.target }}
-        
-        # Move/copy files needed for release
-        mkdir publish
-        cp README.md publish
-        cp LICENSE-APACHE publish
-        cp LICENSE-MIT publish
-        cp attribution.txt publish
-        mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
+          # Build
+          rustup target add ${{ matrix.platform.target }}
+          cargo build --release --target ${{ matrix.platform.target }}
+          
+          # Move/copy files needed for release
+          mkdir publish
+          cp README.md publish
+          cp LICENSE-APACHE publish
+          cp LICENSE-MIT publish
+          cp attribution.txt publish
+          mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
 
-    - name: Create release files (Windows)
-      if: matrix.platform.runs_on == 'windows-latest'
-      env: 
-        # VERSION: 
-        ARCH: ${{ matrix.platform.arch }}
-      run: |
-        cd publish
-        7z a ../${{ matrix.platform.filename }}-portable.zip *
-        cp ../installer.iss .
-        iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
+      - name: Create release files (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        env: 
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ARCH: ${{ matrix.platform.arch }}
+        run: |
+          cd publish
+          7z a ../${{ matrix.platform.filename }}-portable.zip *
+          cp ../installer.iss .
+          iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
 
-    - name: Create release files (Mac/Linux)
-      if: matrix.platform.runs_on != 'windows-latest'
-      run: |
-        cd publish
-        tar cvzf ../${{ matrix.platform.filename }} *
+      - name: Create release files (Mac/Linux)
+        if: matrix.platform.runs_on != 'windows-latest'
+        run: |
+          cd publish
+          tar cvzf ../${{ matrix.platform.filename }} *
 
-    - name: Upload portable (Windows)
-      if: matrix.platform.runs_on == 'windows-latest'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{ matrix.platform.filename }}-portable.zip
-        path: ${{ matrix.platform.filename }}-portable.zip
-        archive: false
+      - name: Upload portable (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform.filename }}-portable.zip
+          path: ${{ matrix.platform.filename }}-portable.zip
+          archive: false
 
-    - name: Upload portable (Mac/Linux)
-      if: matrix.platform.runs_on != 'windows-latest'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{ matrix.platform.filename }}
-        path: ${{ matrix.platform.filename }}
-        archive: false
+      - name: Upload portable (Mac/Linux)
+        if: matrix.platform.runs_on != 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform.filename }}
+          path: ${{ matrix.platform.filename }}
+          archive: false
 
-    - name: Upload installer (Windows)
-      if: matrix.platform.runs_on == 'windows-latest'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{ matrix.platform.filename }}-installer.exe
-        path: ${{ matrix.platform.filename }}-installer.exe
-        archive: false
+      - name: Upload installer (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform.filename }}-installer.exe
+          path: ${{ matrix.platform.filename }}-installer.exe
+          archive: false
 
   # Step 3: Create release on GitHub
 
@@ -275,6 +270,13 @@ jobs:
           path: dist
       - name: Create release
         run: |
+
+          # remove after testing
+          echo "current commit: $(git rev-parse HEAD)"
+          echo "github ref v: ${{ github.ref }}"
+          echo "github ref e: $GITHUB_REF"
+          echo "github head ref: $GITHUB_HEAD_REF"
+
           gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
 
   # # Step 4: Publish to various code registries/package managers
