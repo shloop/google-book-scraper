@@ -36,21 +36,16 @@ jobs:
         id: check_version
         run: |
 
-          echo $(cargo pkgid | cut -d "#" -f2)
+          cargo install cargo-get
 
-          VERSION=$(cargo pkgid | cut -d "#" -f2)
-
-          echo $VERSION
-
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          VERSION=$(cargo get package.version)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
           TAG="v$VERSION"
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-          echo "TAG=${TAG}" >> "$GITHUB_ENV"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
-          echo "branch=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
+          echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
           
       - name: Check if release tag already exists
         id: check_tag
@@ -90,8 +85,8 @@ jobs:
           git push
 
           COMMIT="$(git rev-parse HEAD)"
-          echo "COMMIT=${COMMIT}" >> "$GITHUB_ENV"
-          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "COMMIT=${COMMIT}" >> $GITHUB_ENV
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
 
       - name: var check (delete after test)
         run: |
@@ -103,7 +98,7 @@ jobs:
       - name: Set Result
         id: result
         if: steps.check_tag.outputs.exists != 'true'
-        run: echo "result=true" >> "$GITHUB_OUTPUT"
+        run: echo "result=true" >> $GITHUB_OUTPUT
 
   # Step 2: Build binaries/installers
 
