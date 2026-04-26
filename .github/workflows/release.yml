@@ -26,6 +26,7 @@ jobs:
       tag: ${{ steps.check_version.outputs.tag }}
       branch: ${{ steps.check_version.outputs.branch }}
       release: ${{ steps.result.outputs.result }}
+      commit: ${{ steps.commit.outputs.result }}
     steps:
 
       - name: Checkout
@@ -37,14 +38,15 @@ jobs:
         run: |
           VERSION=$(cargo pkgid | cut -d "#" -f2)
 
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
           TAG="v$VERSION"
 
-          echo "TAG=${TAG}" >> $GITHUB_ENV
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
-          echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
           
       - name: Check if release tag already exists
         id: check_tag
@@ -60,15 +62,16 @@ jobs:
           cargo install cargo-lichking
           cargo lichking bundle > attribution.txt
 
+      - name: var check (delete after test)
+        run: |
+          echo "github sha:     ${{ github.sha }}"
+          echo "current commit: $(git rev-parse HEAD)"
+          echo "github ref:     ${{ github.ref }}"       
+   
       - name: Commit changes
         id: commit
         if: steps.check_tag.outputs.exists != 'true'
         run: |
-
-          # remove after testing
-          echo "current commit: $(git rev-parse HEAD)"
-          echo "github sha: ${{ github.sha }}"
-          echo "github ref: ${{ github.ref }}"
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -82,10 +85,16 @@ jobs:
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
 
-          # remove after testing
+          COMMIT="$(git rev-parse HEAD)"
+          echo "COMMIT=${COMMIT}" >> "$GITHUB_ENV"
+          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
+
+      - name: var check (delete after test)
+        run: |
+          echo "github sha:     ${{ github.sha }}"
           echo "current commit: $(git rev-parse HEAD)"
-          echo "github sha: ${{ github.sha }}"
-          echo "github ref: ${{ github.ref }}"
+          echo "saved commit:   $COMMIT"
+          echo "github ref:     ${{ github.ref }}"       
 
       - name: Set Result
         id: result
@@ -102,6 +111,7 @@ jobs:
     outputs:
       tag: ${{ needs.prepare.outputs.tag }}
       branch: ${{ needs.prepare.outputs.branch }}
+      commit: ${{ needs.prepare.outputs.commit }}
     strategy:
       matrix:
         platform: 
@@ -175,6 +185,15 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.branch }}
 
+      - name: var check (delete after test)
+        run: |
+          echo "filename:       ${{ matrix.platform.filename }}"
+          echo "branch:         ${{ needs.prepare.outputs.branch }}"
+          echo "github sha:     ${{ github.sha }}"
+          echo "current commit: $(git rev-parse HEAD)"
+          echo "saved commit:   ${{ needs.prepare.outputs.commit }}"
+          echo "github ref:     ${{ github.ref }}"
+
       - name: Configure Build (x86 Linux)
         if: matrix.platform.name == 'Linux-i686'
         run: |
@@ -191,11 +210,6 @@ jobs:
 
       - name: Build
         run: |
-
-          # remove after testing
-          echo "current commit: $(git rev-parse HEAD)"
-          echo "github sha: ${{ github.sha }}"
-          echo "github ref: ${{ github.ref }}"
 
           # Build
           rustup target add ${{ matrix.platform.target }}
@@ -258,21 +272,27 @@ jobs:
     runs-on: ubuntu-latest
     # if: github.ref == 'refs/heads/main'
     steps:
+
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.build.outputs.branch }} 
+
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
           path: dist
+
+      - name: var check (delete after test)
+        run: |
+          echo "filename:       ${{ matrix.platform.filename }}"
+          echo "branch:         ${{ needs.build.outputs.branch }}"
+          echo "github sha:     ${{ github.sha }}"
+          echo "current commit: $(git rev-parse HEAD)"
+          echo "saved commit:   ${{ needs.build.outputs.commit }}"
+          echo "github ref:     ${{ github.ref }}"
+
       - name: Create release
         run: |
-
-          # remove after testing
-          echo "current commit: $(git rev-parse HEAD)"
-          echo "github sha: ${{ github.sha }}"
-          echo "github ref: ${{ github.ref }}"
-
           gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
 
   # # Step 4: Publish to various code registries/package managers
