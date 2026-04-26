@@ -5,7 +5,6 @@ on:
     branches: [ "winget_upload" ]
     paths-ignore: 
       - attribution.txt
-      - timestamp.txt
     
 permissions:
   contents: write
@@ -16,7 +15,7 @@ env:
   
 jobs:
 
-  # Step 1: Check if this is new version and do any needed updates
+  # Step 1: Check if this is a new version and update files as needed
 
   prepare:
     name: Version Check
@@ -60,12 +59,6 @@ jobs:
           cargo install cargo-lichking
           cargo lichking bundle > attribution.txt
 
-      # - name: var check (delete after test)
-      #   run: |
-      #     echo "github sha:     ${{ github.sha }}"
-      #     echo "current commit: $(git rev-parse HEAD)"
-      #     echo "github ref:     ${{ github.ref }}"       
-   
       - name: Commit changes
         id: commit
         if: steps.check_tag.outputs.exists != 'true'
@@ -74,25 +67,9 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          
-          # # remove after testing
-          # date > timestamp.txt
-          # git add timestamp.txt
-
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
-
-          # COMMIT="$(git rev-parse HEAD)"
-          # echo "COMMIT=${COMMIT}" >> $GITHUB_ENV
-          # echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
-
-      # - name: var check (delete after test)
-      #   run: |
-      #     echo "github sha:     ${{ github.sha }}"
-      #     echo "current commit: $(git rev-parse HEAD)"
-      #     echo "saved commit:   $COMMIT"
-      #     echo "github ref:     ${{ github.ref }}"       
 
       - name: Set Result
         id: result
@@ -182,16 +159,6 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.branch }}
 
-      # - name: var check (delete after test)
-      #   run: |
-      #     echo "filename:       ${{ matrix.platform.filename }}"
-      #     echo "version:        ${{ needs.prepare.outputs.version }}"
-      #     echo "tag:            ${{ needs.prepare.outputs.tag }}"
-      #     echo "branch:         ${{ needs.prepare.outputs.branch }}"
-      #     echo "github sha:     ${{ github.sha }}"
-      #     echo "current commit: $(git rev-parse HEAD)"
-      #     echo "github ref:     ${{ github.ref }}"
-
       - name: Configure Build (x86 Linux)
         if: matrix.platform.name == 'Linux-i686'
         run: |
@@ -280,64 +247,8 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-
-      # - name: var check (delete after test)
-      #   run: |
-      #     echo "filename:       ${{ matrix.platform.filename }}"
-      #     echo "tag:            ${{ needs.build.outputs.tag }}"
-      #     echo "branch:         ${{ needs.build.outputs.branch }}"
-      #     echo "github sha:     ${{ github.sha }}"
-      #     echo "current commit: $(git rev-parse HEAD)"
-      #     echo "github ref:     ${{ github.ref }}"
+          skip-decompress: true
 
       - name: Create release
         run: |
-          gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
-
-  # # Step 4: Publish to various code registries/package managers
-
-  # publish_crate:
-  #   name: Publish to crates.io
-  #   needs: create_release
-  #   runs-on: ubuntu-latest
-  #   # environment: release  # Optional: for enhanced security
-  #   permissions:
-  #     id-token: write
-  #   steps:
-  #   - uses: actions/checkout@v6
-  #     with:
-  #       ref: $GITHUB_REF 
-  #   - uses: rust-lang/crates-io-auth-action@v1
-  #     id: auth
-  #   - run: cargo publish
-  #     env:
-  #       CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-
-  # publish_homebrew:
-  #   name: Publish to brew tap
-  #   needs: create_release
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Release project to Homebrew tap
-  #       uses: Justintime50/homebrew-releaser@v3
-  #       with:
-  #         homebrew_owner: shloop
-  #         homebrew_tap: homebrew-tap
-  #         github_token: ${{ secrets.TAP_TOKEN }}
-  #         target_darwin_amd64: true
-  #         target_darwin_arm64: true
-  #         target_linux_amd64: true
-  #         target_linux_arm64: true
-  #         install: 'bin.install "gbscraper"'
-  #         update_readme_table: true
-
-  # publish_winget:
-  #   name: Publish to WinGet
-  #   needs: create_release
-  #   runs-on: ubuntu-slim
-  #   steps:
-  #     - uses: vedantmgoyal9/winget-releaser@main
-  #       with:
-  #         identifier: shloop.gbscraper
-  #         installers-regex: '\.exe$' # Only .exe files
-  #         token: ${{ secrets.WINGET_TOKEN }}
+          gh release create ${{ needs.build.outputs.tag }} -t ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
