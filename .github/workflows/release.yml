@@ -1,131 +1,255 @@
 name: Release
+description: Create release if version in Cargo.toml has been updated
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [ "main" ]
+    paths-ignore: 
+      - attribution.txt
     
 permissions:
   contents: write
-  
+
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
-  VERSION: ${{ github.event.release.tag_name }}
-
+  
 jobs:
 
+  # Step 1: Check if this is a new version and update files as needed
+
+  prepare:
+    name: Version Check
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check_version.outputs.version }}
+      tag: ${{ steps.check_version.outputs.tag }}
+      branch: ${{ steps.check_version.outputs.branch }}
+      release: ${{ steps.result.outputs.result }}
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get version from Cargo.toml
+        id: check_version
+        run: |
+
+          cargo install cargo-get
+
+          VERSION=$(cargo get package.version)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          TAG="v$VERSION"
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+          echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          
+      - name: Check if release tag already exists
+        id: check_tag
+        uses: mukunku/tag-exists-action@v1.7.0
+        with: 
+          tag: '$TAG'
+
+      - name: Update attribution
+        if: steps.check_tag.outputs.exists != 'true'
+        # Ignore errors from lichking
+        continue-on-error: true
+        run: |
+          cargo install cargo-lichking
+          cargo lichking bundle > attribution.txt
+
+      - name: Commit changes
+        id: commit
+        if: steps.check_tag.outputs.exists != 'true'
+        run: |
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+          git add attribution.txt
+          git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
+          git push
+
+      - name: Set Result
+        id: result
+        if: steps.check_tag.outputs.exists != 'true'
+        run: echo "result=true" >> $GITHUB_OUTPUT
+
+  # Step 2: Build binaries/installers
+
   build:
-    name: Build and upload binaries
+    name: Build
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ${{ matrix.platform.runs_on }}
+    outputs:
+      tag: ${{ needs.prepare.outputs.tag }}
+      branch: ${{ needs.prepare.outputs.branch }}
     strategy:
       matrix:
         platform: 
-          - name: Windows-x86_64
-            runs_on: windows-latest
-            target: x86_64-pc-windows-msvc
-            bin: gbscraper.exe
-            filename: "google-book-scraper-$($env:VERSION.Substring(1))-windows-amd64.zip"
+
+          # Run job independently for each target platform
+          # Best results when compiling on the target platform (or at least the target OS)
+
+          # Windows 32-bit
           - name: Windows-i686
             runs_on: windows-latest
+            arch: x86compatible and not x64compatible
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-$($env:VERSION.Substring(1))-windows-i686.zip"
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x86
+
+          # Windows 64-bit (x86)
+          - name: Windows-x86_64
+            runs_on: windows-latest
+            arch: x64compatible and not arm64
+            target: x86_64-pc-windows-msvc
+            bin: gbscraper.exe
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x64
+
+          # Windows ARM 64-bit
           - name: Windows-aarch64
             runs_on: windows-latest
+            arch: arm64
             target: aarch64-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-$($env:VERSION.Substring(1))-windows-arm64.zip"
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-arm64
+
+          # MacOS Intel 64-bit
           - name: macOS-x86_64
             runs_on: macOS-latest
             target: x86_64-apple-darwin
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-darwin-amd64.tar.gz"
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-darwin-amd64.tar.gz
+
+          # MacOS ARM 64-bit
           - name: macOS-aarch64
             runs_on: macOS-latest
             target: aarch64-apple-darwin
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-darwin-arm64.tar.gz"
-          - name: Linux-x86_64
-            runs_on: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-linux-amd64.tar.gz"
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-darwin-arm64.tar.gz
+
+          # Linux 32-bit  
           - name: Linux-i686
             runs_on: ubuntu-latest
             target: i686-unknown-linux-gnu
             bin: gbscraper
-            filename:  "google-book-scraper-${VERSION#v}-linux-i686.tar.gz"
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-linux-i686.tar.gz
+
+          # Linux 64-bit (x86)
+          - name: Linux-x86_64
+            runs_on: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: gbscraper
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz
+
+          # Linux ARM 64-bit
           - name: Linux-aarch64
             runs_on: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION#v}-linux-arm64.tar.gz"
-    runs-on: ${{ matrix.platform.runs_on }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v6
-    - name: Configure
-      if: matrix.platform.name == 'Linux-i686'
-      run: |
-        sudo dpkg --add-architecture i386
-        sudo apt update
-        sudo apt install gcc-multilib g++-multilib libssl-dev:i386 pkg-config 
-        echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-        echo "OPENSSL_LIB_DIR=/usr/lib/i386-linux-gnu/" >> $GITHUB_ENV
-        echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl/" >> $GITHUB_ENV
-    - name: Build - ${{ matrix.platform.name }}
-      run: |
-        rustup target add ${{ matrix.platform.target }}
-        cargo build --release --target ${{ matrix.platform.target }}
-    - name: Archive prep
-      run: |
-        mkdir publish
-        cp README.md publish
-        cp LICENSE-APACHE publish
-        cp LICENSE-MIT publish
-        cp attribution.txt publish
-        mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
-    - name: Archive (.zip)
-      if: matrix.platform.runs_on == 'windows-latest'
-      run: |
-        cd publish
-        7z a ../${{ matrix.platform.filename }} *
-    - name: Archive (.tar.gz)
-      if: matrix.platform.runs_on != 'windows-latest'
-      run: |
-        cd publish
-        tar cvzf ../${{ matrix.platform.filename }} *
-    - name: Release
-      run:
-        gh release upload ${{ github.event.release.tag_name }} ${{ matrix.platform.filename }}
+            filename: google-book-scraper-${{ needs.prepare.outputs.version }}-linux-arm64.tar.gz
 
-  publish_crate:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    # environment: release  # Optional: for enhanced security
-    permissions:
-      id-token: write
     steps:
-    - uses: actions/checkout@v6
-    - uses: rust-lang/crates-io-auth-action@v1
-      id: auth
-    - run: cargo publish
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
-  publish_homebrew:
-    runs-on: ubuntu-latest
-    needs: build
-    name: Publish to brew tap
-    steps:
-      - name: Release project to Homebrew tap
-        uses: Justintime50/homebrew-releaser@v3
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
-          homebrew_owner: shloop
-          homebrew_tap: homebrew-tap
-          github_token: ${{ secrets.TAP_TOKEN }}
-          target_darwin_amd64: true
-          target_darwin_arm64: true
-          target_linux_amd64: true
-          target_linux_arm64: true
-          install: 'bin.install "gbscraper"'
-          update_readme_table: true
+          ref: ${{ needs.prepare.outputs.branch }}
+
+      - name: Configure Build (x86 Linux)
+        if: matrix.platform.name == 'Linux-i686'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update
+          sudo apt install gcc-multilib g++-multilib libssl-dev:i386 pkg-config 
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/i386-linux-gnu/" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl/" >> $GITHUB_ENV
+
+      - name: Configure Build (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $GITHUB_ENV
+
+      - name: Build
+        run: |
+
+          # Build
+          rustup target add ${{ matrix.platform.target }}
+          cargo build --release --target ${{ matrix.platform.target }}
+          
+          # Move/copy files needed for release
+          mkdir publish
+          cp README.md publish
+          cp LICENSE-APACHE publish
+          cp LICENSE-MIT publish
+          cp attribution.txt publish
+          mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
+
+      - name: Create release files (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        env: 
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ARCH: ${{ matrix.platform.arch }}
+        run: |
+          cd publish
+          7z a ../${{ matrix.platform.filename }}-portable.zip *
+          cp ../installer.iss .
+          iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
+
+      - name: Create release files (Mac/Linux)
+        if: matrix.platform.runs_on != 'windows-latest'
+        run: |
+          cd publish
+          tar cvzf ../${{ matrix.platform.filename }} *
+
+      - name: Upload portable (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform.filename }}-portable.zip
+          path: ${{ matrix.platform.filename }}-portable.zip
+          archive: false
+
+      - name: Upload portable (Mac/Linux)
+        if: matrix.platform.runs_on != 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform.filename }}
+          path: ${{ matrix.platform.filename }}
+          archive: false
+
+      - name: Upload installer (Windows)
+        if: matrix.platform.runs_on == 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform.filename }}-installer.exe
+          path: ${{ matrix.platform.filename }}-installer.exe
+          archive: false
+
+  # Step 3: Create release on GitHub
+
+  create_release:
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+    # if: github.ref == 'refs/heads/main'
+    steps:
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.build.outputs.branch }} 
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+          skip-decompress: true
+
+      - name: Create release
+        run: |
+          gh release create ${{ needs.build.outputs.tag }} -t ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
