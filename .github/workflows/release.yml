@@ -1,8 +1,9 @@
 name: Release
-  
+description: Create release if version in Cargo.toml has been updated
+
 on:
   push:
-    branches: [ "winget_upload" ]
+    branches: [ "main" ]
     paths-ignore: 
       - attribution.txt
     

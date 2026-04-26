@@ -4,7 +4,11 @@ description: Publish to various code registries/package managers
 on:
   release:
     types: [published]
-    
+
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
 
   publish_crate:

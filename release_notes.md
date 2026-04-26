@@ -1,7 +1,5 @@
-## What's Chanegd
+## What's Changed
 
-- First item
-- Second item
-- Third item
+- Template
 
-**Full Changelog**: https://github.com/shloop/google-book-scraper/compare/v0.3.8...v0.3.8-test
+**Full Changelog**: https://github.com/shloop/google-book-scraper/compare/vX.X.X...vX.X.X
