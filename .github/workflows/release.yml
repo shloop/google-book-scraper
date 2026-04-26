@@ -30,20 +30,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Install dependencies
+        run: |
+          cargo install cargo-get
+          cargo install cargo-lichking
+
       - name: Get version from Cargo.toml
         id: check_version
         run: |
-          cargo install cargo-get
-
           VERSION=$(cargo get package.version)
 
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
           TAG="v$VERSION"
 
           echo "TAG=${TAG}" >> $GITHUB_ENV
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Check if release tag already exists
         id: check_tag
@@ -55,9 +58,7 @@ jobs:
         if: steps.check_tag.outputs.exists != 'true'
         # Ignore errors from lichking
         continue-on-error: true
-        run: |
-          cargo install cargo-lichking
-          cargo lichking bundle > attribution.txt
+        run: cargo lichking bundle > attribution.txt
 
       - name: Commit changes
         id: commit
@@ -68,16 +69,15 @@ jobs:
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
-          # COMMIT=$(git rev-parse --short HEAD)
-          COMMIT=$(git rev-parse HEAD)
-          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
+          COMMIT=$(git rev-parse --short HEAD)
+          # COMMIT=$(git rev-parse HEAD)
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
           echo "COMMIT: $COMMIT"
-
 
       - name: Set Result
         id: result
         if: steps.check_tag.outputs.exists != 'true'
-        run: echo "result=true" >> "$GITHUB_OUTPUT"
+        run: echo "result=true" >> $GITHUB_OUTPUT
 
   # Step 2: Build binaries/installers
 
@@ -238,10 +238,6 @@ jobs:
         name: ${{ matrix.platform.filename }}-installer.exe
         path: ${{ matrix.platform.filename }}-installer.exe
         archive: false
-
-    # - name: Release
-    #   run:
-    #     gh release upload ${{ github.ref_name }} ${{ matrix.platform.filename }}
 
   # Step 3: Create release on GitHub
 
