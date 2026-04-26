@@ -32,11 +32,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-
       - name: Get version from Cargo.toml
         id: check_version
         run: |
+
+          echo $(cargo pkgid | cut -d "#" -f2)
+
           VERSION=$(cargo pkgid | cut -d "#" -f2)
+
+          echo $VERSION
 
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
