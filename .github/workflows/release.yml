@@ -9,10 +9,6 @@ on:
 permissions:
   contents: write
 
-defaults:
-  run:
-    shell: bash
-
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
@@ -98,7 +94,7 @@ jobs:
             arch: x86compatible and not x64compatible
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-${VERSION}-windows-x86"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x86"
 
           # Windows 64-bit (x86)
           - name: Windows-x86_64
@@ -106,7 +102,7 @@ jobs:
             arch: x64compatible and not arm64
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-${VERSION}-windows-x64"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x64"
 
           # Windows ARM 64-bit
           - name: Windows-aarch64
@@ -114,42 +110,42 @@ jobs:
             arch: arm64
             target: aarch64-pc-windows-msvc
             bin: gbscraper.exe
-            filename: "google-book-scraper-${VERSION}-windows-arm64"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-windows-arm64"
 
           # MacOS Intel 64-bit
           - name: macOS-x86_64
             runs_on: macOS-latest
             target: x86_64-apple-darwin
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION}-darwin-amd64.tar.gz"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-darwin-amd64.tar.gz"
 
           # MacOS ARM 64-bit
           - name: macOS-aarch64
             runs_on: macOS-latest
             target: aarch64-apple-darwin
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION}-darwin-arm64.tar.gz"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-darwin-arm64.tar.gz"
 
           # Linux 32-bit  
           - name: Linux-i686
             runs_on: ubuntu-latest
             target: i686-unknown-linux-gnu
             bin: gbscraper
-            filename:  "google-book-scraper-${VERSION}-linux-i686.tar.gz"
+            filename:  "google-book-scraper-${{ needs.prepare.outputs.version }}-linux-i686.tar.gz"
 
           # Linux 64-bit (x86)
           - name: Linux-x86_64
             runs_on: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION}-linux-amd64.tar.gz"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz"
 
           # Linux ARM 64-bit
           - name: Linux-aarch64
             runs_on: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             bin: gbscraper
-            filename: "google-book-scraper-${VERSION}-linux-arm64.tar.gz"
+            filename: "google-book-scraper-${{ needs.prepare.outputs.version }}-linux-arm64.tar.gz"
 
     steps:
 
