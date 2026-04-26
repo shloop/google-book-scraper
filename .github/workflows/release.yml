@@ -24,6 +24,7 @@ jobs:
     outputs:
       version: ${{ steps.check_version.outputs.version }}
       tag: ${{ steps.check_version.outputs.tag }}
+      branch: ${{ steps.check_version.outputs.branch }}
       release: ${{ steps.result.outputs.result }}
       # commit: ${{ steps.result.outputs.commit }}
     steps:
@@ -41,7 +42,6 @@ jobs:
         run: |
           VERSION=$(cargo get package.version)
 
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
           TAG="v$VERSION"
@@ -49,11 +49,13 @@ jobs:
           echo "TAG=${TAG}" >> $GITHUB_ENV
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
+          echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          
       - name: Check if release tag already exists
         id: check_tag
         uses: mukunku/tag-exists-action@v1.7.0
         with: 
-          tag: 'v$VERSION'
+          tag: '$TAG'
 
       - name: Update attribution
         if: steps.check_tag.outputs.exists != 'true'
@@ -69,6 +71,7 @@ jobs:
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
           echo "github ref: $GITHUB_REF"
+          echo "github head ref: $GITHUB_HEAD_REF"
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -90,6 +93,7 @@ jobs:
           # remove after testing
           echo "current commit: $(git rev-parse HEAD)"
           echo "github ref: $GITHUB_REF"
+          echo "github head ref: $GITHUB_HEAD_REF"
 
       - name: Set Result
         id: result
@@ -103,12 +107,9 @@ jobs:
     needs: prepare
     if: needs.prepare.outputs.release == 'true'
     runs-on: ${{ matrix.platform.runs_on }}
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
-      TAG: ${{ needs.prepare.outputs.tag }}
     outputs:
-      version: ${{ needs.prepare.outputs.version }}
       tag: ${{ needs.prepare.outputs.tag }}
+      branch: ${{ needs.prepare.outputs.branch }}
     strategy:
       matrix:
         platform: 
@@ -177,9 +178,6 @@ jobs:
 
     steps:
 
-    - name: check commit
-      run: |
-        echo "COMMIT: $COMMIT"
     - name: Checkout
       uses: actions/checkout@v6
       with:
@@ -204,7 +202,8 @@ jobs:
 
         # remove after testing
         echo "current commit: $(git rev-parse HEAD)"
-        echo "github ref: $GITHUB_REF"     
+        echo "github ref: $GITHUB_REF"
+        echo "github head ref: $GITHUB_HEAD_REF"
 
         # Build
         rustup target add ${{ matrix.platform.target }}
@@ -266,9 +265,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # if: github.ref == 'refs/heads/main'
-    env:
-      VERSION: ${{ needs.build.outputs.version }}
-      TAG: ${{ needs.build.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -279,9 +275,7 @@ jobs:
           path: dist
       - name: Create release
         run: |
-          echo "using tag: $TAG"
-          echo "using commit: $GITHUB_REF "
-          gh release create $TAG --target $GITHUB_REF -F release_notes.md -d ./dist/*
+          gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
 
   # # Step 4: Publish to various code registries/package managers
 
