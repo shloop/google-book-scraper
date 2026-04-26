@@ -24,7 +24,7 @@ jobs:
       version: ${{ steps.check_version.outputs.version }}
       tag: ${{ steps.check_version.outputs.tag }}
       release: ${{ steps.result.outputs.result }}
-      commit: ${{ steps.result.outputs.result }}
+      commit: ${{ steps.result.outputs.commit }}
     steps:
 
       - name: Checkout
@@ -68,7 +68,8 @@ jobs:
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
-          COMMIT=$(git rev-parse --short HEAD)
+          # COMMIT=$(git rev-parse --short HEAD)
+          COMMIT=$(git rev-parse HEAD)
           echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
 
       - name: Set Result
@@ -198,7 +199,8 @@ jobs:
       run: |
         cd publish
         7z a ../${{ matrix.platform.filename }}-portable.zip *
-        iscc /O".." /F"${{ matrix.platform.filename }}-installer" ../installer.iss
+        cp ../installer.iss .
+        iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
 
     - name: Create release files (Mac/Linux)
       if: matrix.platform.runs_on != 'windows-latest'
@@ -250,7 +252,7 @@ jobs:
         with:
           path: dist
       - name: Create release
-        run: gh release create ${{ needs.build.outputs.tag }} -F release_notes.md -d ./dist/*
+        run: gh release create ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.commit }} -F release_notes.md -d ./dist/*
 
   # # Step 4: Publish to various code registries/package managers
 
