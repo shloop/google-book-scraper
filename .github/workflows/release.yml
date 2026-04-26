@@ -24,7 +24,7 @@ jobs:
       version: ${{ steps.check_version.outputs.version }}
       tag: ${{ steps.check_version.outputs.tag }}
       release: ${{ steps.result.outputs.result }}
-      commit: ${{ steps.result.outputs.result }}
+      commit: ${{ steps.result.outputs.commit }}
     steps:
 
       - name: Checkout
@@ -68,7 +68,8 @@ jobs:
           git add attribution.txt
           git diff --staged --quiet || git commit -m 'auto-update attribution.txt'
           git push
-          COMMIT=$(git rev-parse --short HEAD)
+          # COMMIT=$(git rev-parse --short HEAD)
+          COMMIT=$(git rev-parse HEAD)
           echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
 
       - name: Set Result
