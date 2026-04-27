@@ -1,9 +1,11 @@
-name: Test
+name: Choco
 
 on: 
   push:
     branches: 
       - choco_upload
+env:
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   publish_choco:
