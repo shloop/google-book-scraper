@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>gbscraper</id>
+    <version>$VERSION</version>
+    <title>Google Book Scraper</title>
+    <authors>shloop</authors>
+    <projectUrl>https://github.com/shloop/google-book-scraper</projectUrl>
+    <tags>gbscraper</tags>
+    <summary>Tool for downloading the contents of books hosted on books.google.com for offline viewing</summary>
+    <description>Tool for downloading the contents of books hosted on books.google.com for offline viewing</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

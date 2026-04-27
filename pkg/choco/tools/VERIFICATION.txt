@@ -1,0 +1,5 @@
+﻿VERIFICATION
+Verification is intended to assist the Chocolatey moderators and community
+in verifying that this package's contents are trustworthy.
+
+I am the creator of the software. Checksums can be verified by comparing against files in corresponding release https://github.com/shloop/google-book-scraper/releases
