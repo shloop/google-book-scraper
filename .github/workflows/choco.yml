@@ -19,13 +19,13 @@ jobs:
         # TODO: configure
         mkdir dist
         gh release download v$VERSION --pattern '*.zip' -D dist
-        $z32 = "google-book-scraper-$VERSION-windows-x86-portable.zip"
-        $z64 = "google-book-scraper-$VERSION-windows-x64-portable.zip"
+        $z32 = "google-book-scraper-$env:VERSION-windows-x86-portable.zip"
+        $z64 = "google-book-scraper-$env:VERSION-windows-x64-portable.zip"
         mv dist/$z32 pkg/choco/tools
         mv dist/$z64 pkg/choco/tools
         cd pkg/choco
-        (Get-Content gbscraper.nuspec).Replace('$VERSION', $VERSION) | Set-Content gbscraper.nuspec
-        (Get-Content tools/chocolateyinstall.ps1).Replace('$VERSION', $VERSION) | Set-Content tools/chocolateyinstall.ps1
+        (Get-Content gbscraper.nuspec).Replace('$VERSION', $env:VERSION) | Set-Content gbscraper.nuspec
+        (Get-Content tools/chocolateyinstall.ps1).Replace('$VERSION', $env:VERSION) | Set-Content tools/chocolateyinstall.ps1
         choco pack
         choco install gbscraper -s . -y
     - name: Run tests
