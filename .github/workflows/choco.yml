@@ -1,57 +1,11 @@
-name: Publish
-description: Publish to various code registries/package managers
+name: Test
 
-on:
-  release:
-    types: [published]
-
-env:
-  CARGO_TERM_COLOR: always
-  GH_TOKEN: ${{ github.token }}
+on: 
+  push:
+    branches: 
+      - choco_upload
 
 jobs:
-
-  publish_crate:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    # environment: release  # Optional: for enhanced security
-    permissions:
-      id-token: write
-    steps:
-    - uses: actions/checkout@v6
-    - uses: rust-lang/crates-io-auth-action@v1
-      id: auth
-    - run: cargo publish
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-
-  publish_homebrew:
-    name: Publish to brew tap
-    runs-on: ubuntu-latest
-    steps:
-      - name: Release project to Homebrew tap
-        uses: Justintime50/homebrew-releaser@v3
-        with:
-          homebrew_owner: shloop
-          homebrew_tap: homebrew-tap
-          github_token: ${{ secrets.TAP_TOKEN }}
-          target_darwin_amd64: true
-          target_darwin_arm64: true
-          target_linux_amd64: true
-          target_linux_arm64: true
-          install: 'bin.install "gbscraper"'
-          update_readme_table: true
-
-  publish_winget:
-    name: Publish to WinGet
-    runs-on: ubuntu-slim
-    steps:
-      - uses: vedantmgoyal9/winget-releaser@main
-        with:
-          identifier: shloop.gbscraper
-          installers-regex: '\.exe$' # Only .exe files
-          token: ${{ secrets.WINGET_TOKEN }}
-
   publish_choco:
     name: Publish to Chocolatey
     runs-on: windows-latest
@@ -59,7 +13,7 @@ jobs:
     - uses: actions/checkout@v6
     - name: Package
       run: |
-        $VERSION = "${{ github.event.release.tag_name }}".SubString(1)
+        $VERSION = "0.3.8"
 
         # Download portable binaries from release and place in tools directory
         mkdir dist
