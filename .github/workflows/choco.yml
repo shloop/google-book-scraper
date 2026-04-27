@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: Run tests
+    name: Choco pkg
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v6
@@ -18,7 +18,7 @@ jobs:
       run: |
         # TODO: configure
         mkdir dist
-        gh release download v$VERSION --pattern '*.zip' -D dist
+        gh release download v$env:VERSION --pattern '*.zip' -D dist
         $z32 = "google-book-scraper-$env:VERSION-windows-x86-portable.zip"
         $z64 = "google-book-scraper-$env:VERSION-windows-x64-portable.zip"
         mv dist/$z32 pkg/choco/tools
@@ -28,5 +28,3 @@ jobs:
         (Get-Content tools/chocolateyinstall.ps1).Replace('$VERSION', $env:VERSION) | Set-Content tools/chocolateyinstall.ps1
         choco pack
         choco install gbscraper -s . -y
-    - name: Run tests
-      run: cargo test --verbose
