@@ -5,6 +5,9 @@ on:
     branches: 
       - choco_upload
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   test:
     name: Choco pkg
@@ -14,7 +17,6 @@ jobs:
     - name: Package
       env:
         VERSION: 0.3.8
-        SUMMARY: ${{ github.workspace }}
       run: |
         # TODO: configure
         mkdir dist
