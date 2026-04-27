@@ -7,6 +7,7 @@ on:
 
 env:
   GH_TOKEN: ${{ github.token }}
+  API_KEY: ${{ secrets.CHOCO_API_KEY }}
 
 jobs:
   test:
@@ -18,7 +19,6 @@ jobs:
       env:
         VERSION: 0.3.8
       run: |
-        # TODO: configure
         mkdir dist
         gh release download v$env:VERSION --pattern '*.zip' -D dist
         $z32 = "google-book-scraper-$env:VERSION-windows-x86-portable.zip"
@@ -30,3 +30,5 @@ jobs:
         (Get-Content tools/chocolateyinstall.ps1).Replace('$VERSION', $env:VERSION) | Set-Content tools/chocolateyinstall.ps1
         choco pack
         choco install gbscraper -s . -y
+        choco apikey --key ${{ secrets.CHOCO_API_KEY }} --source https://push.chocolatey.org/
+        choco push gbscraper.$env:VERSION.nupkg --source https://push.chocolatey.org/
