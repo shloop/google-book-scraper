@@ -200,7 +200,7 @@ jobs:
         run: |
           cd publish
           7z a ../${{ matrix.platform.filename }}-portable.zip *
-          cp ../installer.iss .
+          cp ../pkg/winget/installer.iss .
           iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
 
       - name: Create release files (Mac/Linux)
