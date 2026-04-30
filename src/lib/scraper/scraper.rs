@@ -82,7 +82,11 @@ pub fn download_issue_skip_downloaded(
         length_limit: max_length,
         ..Default::default()
     };
-    let issue_combined_id = std::format!("{0} [{1}]", sanitise_with_options(&meta.get_full_title(), &sanitize_options), meta.id);
+    let issue_combined_id = std::format!(
+        "{0} [{1}]",
+        sanitise_with_options(&meta.get_full_title(), &sanitize_options),
+        meta.id
+    );
     let dest = match meta.book_type {
         ContentType::Magazine | ContentType::Newspaper => {
             std::format!("{dest}/{0}", sanitise(&meta.title))
@@ -142,7 +146,10 @@ pub fn download_issue_skip_downloaded(
     }
 
     // Fetch JSON to get info about all pages.
-    let mut res = try_download(&get_json_url(&id, "1", "1", Some(options)), options.download_attempts)?;
+    let mut res = try_download(
+        &get_json_url(&id, "1", "1", Some(options)),
+        options.download_attempts,
+    )?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
     let issue: IssueJson = serde_json::from_str(&body).to_result()?;
@@ -362,6 +369,15 @@ pub fn download_issue_skip_downloaded(
         }
     }
 
+    if pages_downloaded.is_empty() {
+        return Err(std::io::Error::other(
+            match options.tld.as_str() {
+                ".com" => "No downloadable pages found.",
+                _ => "No downloadable pages found. Setting --tld-override to \".com\" may fix this issue.",
+            }
+        ));
+    }
+
     // Download any formats not already downloaded.
     if formats.contains(FormatFlags::Pdf) {
         println!("Generating PDF...");
@@ -381,13 +397,6 @@ pub fn download_issue_skip_downloaded(
     if let Some(downloaded) = already_downloaded {
         downloaded.insert(id.to_string());
     }
-    options.archive_file.as_ref().map(|archive| {
-        if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(archive) {
-            if let Err(e) = file.write(std::format!("{id}\n").as_bytes()) {
-                eprintln!("Couldn't write to file: {}", e);
-            }
-        }
-    });
     if let Some(archive) = options.archive_file.as_ref() {
         if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(archive) {
             if let Err(e) = file.write(std::format!("{id}\n").as_bytes()) {
