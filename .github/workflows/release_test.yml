@@ -1,0 +1,31 @@
+name: Version (test)
+description: Version (test)
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [ "action_release_test" ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+
+  run:
+    name: Action test
+    runs-on: windows-latest
+    steps:
+      - name: Fetch latest version
+        id: lastversion
+        uses: dvershinin/lastversion-action@main
+      - name: Print latest version
+        run: |
+          echo "latest version from action: ${{ steps.lastversion.outputs.last_version }}"
+      - name: output
+        env:
+            VERSION: ${{ github.event.release.tag_name || steps.lastversion.outputs.last_version }}
+        run: |
+          echo "latest version: $VERSION"
