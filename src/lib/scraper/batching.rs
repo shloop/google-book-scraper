@@ -1,4 +1,4 @@
-//use std::io::Read;
+use std::collections::HashSet;
 use std::io::{self};
 
 use ::scraper::{Html, Selector};
@@ -8,15 +8,15 @@ use super::types::*;
 use super::*;
 
 /// Downloads all issues within the selected period of the page at the provided URL.
-pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
-    let url = sanitize_url(url)?;
+pub fn download_period(url: &str, dest: &str, options: &ScraperOptions, already_downloaded: &mut HashSet<String>) -> io::Result<()> {
+    let url = sanitize_url(url, Some(options))?;
 
     if options.verbose {
         println!("Attempting download of period page with url: {url}");
     }
 
     for issue_url in get_issue_urls_in_period(&url, options)? {
-        if let Err(x) = download_issue(&issue_url, dest, options) {
+        if let Err(x) = download_issue_skip_downloaded(&issue_url, dest, options, Some(already_downloaded)) {
             eprintln!("Error downloading issue {issue_url}: {}", x);
         }
     }
@@ -24,15 +24,15 @@ pub fn download_period(url: &str, dest: &str, options: &mut ScraperOptions) -> i
 }
 
 /// Downloads all issues within the series of the issue at the provided URL.
-pub fn download_all(url: &str, dest: &str, options: &mut ScraperOptions) -> io::Result<()> {
-    let url = sanitize_url(url)?;
+pub fn download_all(url: &str, dest: &str, options: &ScraperOptions, already_downloaded: &mut HashSet<String>) -> io::Result<()> {
+    let url = sanitize_url(url, Some(options))?;
 
     if options.verbose {
         println!("Attempting download of base page with url: {url}");
     }
 
     for period_url in get_period_urls(&url, options)? {
-        if let Err(x) = download_period(&period_url, dest, options) {
+        if let Err(x) = download_period(&period_url, dest, options, already_downloaded) {
             eprintln!("Error downloading period {period_url}: {}", x);
         }
     }

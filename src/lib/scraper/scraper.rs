@@ -1,5 +1,5 @@
 use image::{ColorType, DynamicImage, GenericImage};
-use sanitise_file_name::sanitise;
+use sanitise_file_name::{sanitise, sanitise_with_options};
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -24,7 +24,24 @@ use crate::writer::pdf::{create_pdf_with_toc, TableOfContents};
 pub fn download_issue(
     url: &str,
     dest: &str,
-    options: &mut ScraperOptions,
+    options: &ScraperOptions,
+) -> io::Result<DownloadStatus> {
+    download_issue_skip_downloaded(url, dest, options, None)
+}
+
+/// Downloads issue at the provided URL and performs any necessary format conversion.
+///
+/// # Arguments
+///
+/// * `url` - URL of issue to download.
+/// * `dest` - Filename of image to link to.
+/// * `options` - Various options for how to process downloaded images.
+/// * `already_downloaded` - A set of already downloaded book IDs.
+pub fn download_issue_skip_downloaded(
+    url: &str,
+    dest: &str,
+    options: &ScraperOptions,
+    already_downloaded: Option<&mut HashSet<String>>,
 ) -> io::Result<DownloadStatus> {
     // Note: Some books have download links in page: <a class="gbmt goog-menuitem-content" id="" href="$download_url">Download $ebook_format</a>
     //       These links sometimes require captcha, so probably can't be automated.
@@ -37,18 +54,20 @@ pub fn download_issue(
     // TODO: concurrent downloads? (might be a bad idea since google may flag it as unusual behavior)
 
     let id = id_from_url(url)?;
-    let url = url_from_id(&id);
+    let url = url_from_id(&id, Some(options));
 
-    if options.already_downloaded.contains(&id) {
-        println!("Skipping already downloaded book: {id}...");
-        return Ok(DownloadStatus::Skipped);
+    if let Some(ref downloaded) = already_downloaded {
+        if downloaded.contains(&id) {
+            println!("Skipping already downloaded book: {id}...");
+            return Ok(DownloadStatus::Skipped);
+        }
     }
 
     println!("Identifying book: {id}...");
 
     // Fetch page.
     if options.verbose {
-        println!("Attemping download of issue page with url: {url}");
+        println!("Attempting download of issue page with url: {url}");
     }
     let res = try_download(&url, options.download_attempts)?;
     let body = res.text().to_result()?;
@@ -58,7 +77,12 @@ pub fn download_issue(
     let meta = BookMetadata::from_page(&id, &doc)?;
 
     // Derive paths.
-    let issue_combined_id = std::format!("{0} [{1}]", sanitise(&meta.get_full_title()), meta.id);
+    let max_length = 255 - meta.id.len() - 7; // truncate title to allow " [id].pdf"
+    let sanitize_options = sanitise_file_name::Options {
+        length_limit: max_length,
+        ..Default::default()
+    };
+    let issue_combined_id = std::format!("{0} [{1}]", sanitise_with_options(&meta.get_full_title(), &sanitize_options), meta.id);
     let dest = match meta.book_type {
         ContentType::Magazine | ContentType::Newspaper => {
             std::format!("{dest}/{0}", sanitise(&meta.title))
@@ -101,7 +125,7 @@ pub fn download_issue(
         let mut bookmark_name = String::new();
         element.text().for_each(|x| bookmark_name += x);
 
-        // Page ID is in link URL
+        // Page ID is in link URL.
         if let Some(bookmark_url) = element
             .select(&Selector::parse("a").to_result()?)
             .next()
@@ -118,7 +142,7 @@ pub fn download_issue(
     }
 
     // Fetch JSON to get info about all pages.
-    let mut res = try_download(&get_json_url(&id, "1", "1"), options.download_attempts)?;
+    let mut res = try_download(&get_json_url(&id, "1", "1", Some(options)), options.download_attempts)?;
     let mut body = String::new();
     res.read_to_string(&mut body)?;
     let issue: IssueJson = serde_json::from_str(&body).to_result()?;
@@ -162,7 +186,7 @@ pub fn download_issue(
 
         // Fetch JSON for page.
         let mut res = try_download(
-            &get_json_url(&id, &first_page, &page_id),
+            &get_json_url(&id, &first_page, &page_id, Some(options)),
             options.download_attempts,
         )?;
         let mut body = String::new();
@@ -354,7 +378,16 @@ pub fn download_issue(
     }
 
     // All done. Add to list of downloaded books and update archive file if applicable.
-    options.already_downloaded.insert(id.to_string());
+    if let Some(downloaded) = already_downloaded {
+        downloaded.insert(id.to_string());
+    }
+    options.archive_file.as_ref().map(|archive| {
+        if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(archive) {
+            if let Err(e) = file.write(std::format!("{id}\n").as_bytes()) {
+                eprintln!("Couldn't write to file: {}", e);
+            }
+        }
+    });
     if let Some(archive) = options.archive_file.as_ref() {
         if let Ok(mut file) = OpenOptions::new().append(true).create(true).open(archive) {
             if let Err(e) = file.write(std::format!("{id}\n").as_bytes()) {
@@ -409,7 +442,7 @@ mod tests {
                 orig_from: String::from("Harvard University"),
             };
 
-            let metadata = download_issue(&url, dest, &mut options);
+            let metadata = download_issue(&url, dest, &options);
             assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
         }
 
@@ -443,7 +476,7 @@ mod tests {
                 orig_from: String::from(""),
             };
 
-            let metadata = download_issue(&url, dest, &mut options);
+            let metadata = download_issue(&url, dest, &options);
             assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
         }
 
@@ -472,7 +505,7 @@ mod tests {
                 orig_from: String::from(""),
             };
 
-            let metadata = download_issue(&url, dest, &mut options);
+            let metadata = download_issue(&url, dest, &options);
             assert_eq!(metadata.unwrap(), DownloadStatus::Complete(expected));
         }
     }
