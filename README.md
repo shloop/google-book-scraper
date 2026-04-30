@@ -89,6 +89,8 @@ Options:
           Number of times to attempt downloading any file before giving up on book. Set to 0 to try indefinitely [default: 3]
   -v, --verbose
           If set, extra output will be given
+  -t, --tld-override <TLD_OVERRIDE>
+          The top level domain to normalize URLs to for downloading. If omitted, ".us" will be used. Set to "none" to disable URL normalization and use TLD from provided URL
   -h, --help
           Print help
   -V, --version
