@@ -16,16 +16,17 @@ jobs:
 
   run:
     name: Action test
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
-      - name: Fetch latest version
-        id: lastversion
-        uses: dvershinin/lastversion-action@main
+      - id: lastversion
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: ${{ github.repository }}
       - name: Print latest version
         run: |
-          echo "latest version from action: ${{ steps.lastversion.outputs.last_version }}"
+          echo "latest version from action: ${{ steps.lastversion.outputs.release  }}"
       - name: output
         env:
-            VERSION: ${{ github.event.release.tag_name || steps.lastversion.outputs.last_version }}
+            VERSION: ${{ github.event.release.tag_name || steps.lastversion.outputs.release  }}
         run: |
           echo "latest version: $VERSION"
