@@ -9,8 +9,32 @@ on:
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
 jobs:
+
+  get_release_version:
+    name: Get release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag: ${{ steps.get_version.outputs.tag }}
+    steps:
+      - name: Determine latest version
+        id: latest_version
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: ${{ github.repository }}
+      - name: Get current version
+        id: get_version
+        env:
+          # Get version from current release if workflow was triggered by release, otherwise use latest release version
+          TAG: ${{ github.event.release.tag_name || steps.latest_version.outputs.release  }}
+        run: |
+          # Get version without preceding 'v'
+          VERSION=${TAG#v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
   publish_crate:
     name: Publish to crates.io
@@ -47,6 +71,7 @@ jobs:
 
   publish_winget:
     name: Publish to WinGet
+    needs: get_release_version
     runs-on: ubuntu-slim
     steps:
       - uses: vedantmgoyal9/winget-releaser@main
@@ -54,27 +79,25 @@ jobs:
           identifier: shloop.gbscraper
           installers-regex: '\.exe$' # Only .exe files
           token: ${{ secrets.WINGET_TOKEN }}
+          version: ${{ needs.get_release_version.outputs.version }}
 
   publish_choco:
     name: Publish to Chocolatey
+    needs: get_release_version
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Determine latest version
-        id: lastversion
-        uses: pozetroninc/github-action-get-latest-release@master
-        with:
-          repository: ${{ github.repository }}
       - name: Package and upload to Chocolatey
         env:
-            VERSION: ${{ github.event.release.tag_name || steps.lastversion.outputs.release  }}
+          VERSION: ${{ needs.get_release_version.outputs.version }}
         run: |
-          $VERSION = $env:VERSION.SubString(1)
+          $VERSION = ${{ needs.get_release_version.outputs.version }}
+          $TAG = ${{ needs.get_release_version.outputs.tag }}
 
           # Download portable binaries from release and place in tools directory
           mkdir dist
-          gh release download v$VERSION --pattern '*.zip' -D dist
+          gh release download $TAG --pattern '*.zip' -D dist
           $z32 = "google-book-scraper-$VERSION-windows-x86-portable.zip"
           $z64 = "google-book-scraper-$VERSION-windows-x64-portable.zip"
           mv dist/$z32 pkg/choco/tools
