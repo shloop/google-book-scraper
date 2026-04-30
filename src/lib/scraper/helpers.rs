@@ -2,7 +2,13 @@ use std::fmt::Display;
 use std::io::{self};
 use url::Url;
 
+use crate::scraper::FALLBACK_TLD;
+use crate::scraper::types::ScraperOptions;
+
 /// Parse book ID from URL.
+/// 
+/// # Arguments
+/// * `url` - URL of book or issue to download.
 pub(crate) fn id_from_url(url: &str) -> io::Result<String> {
     // Note: old style URL: https://books.google.com/books?id=$book_id&$other_args...
     //       new style URL: https://www.google.com/books/edition/$arbitrary_title/$book_id?$args...
@@ -21,22 +27,23 @@ pub(crate) fn id_from_url(url: &str) -> io::Result<String> {
 }
 
 /// Generate basic old-style URL from book ID.
-pub(crate) fn url_from_id(id: &str) -> String {
-    std::format!("https://books.google.us/books?id={id}&hl=en")
+pub(crate) fn url_from_id(id: &str, options: Option<&ScraperOptions>) -> String {
+    let tld = options.map_or(FALLBACK_TLD, |x| x.tld.as_str());
+    std::format!("https://books.google{tld}/books?id={id}&hl=en")
 }
 
 /// Gets URL of JSON pertaiing to specified page.
-pub(crate) fn get_json_url(id: &str, first_page: &str, page_id: &str) -> String {
+pub(crate) fn get_json_url(id: &str, first_page: &str, page_id: &str, options: Option<&ScraperOptions>) -> String {
     std::format!(
         "{}&lpg={first_page}&pg={page_id}&jscmd=click3",
-        url_from_id(id)
+        url_from_id(id, options)
     )
 }
 
-/// Converts URL to US/English and strips unneccessary
-pub(crate) fn sanitize_url(url: &str) -> io::Result<String> {
+/// Converts URL to English and strips unneccessary parameters.
+pub(crate) fn sanitize_url(url: &str, options: Option<&ScraperOptions>) -> io::Result<String> {
     // Strip everything but ID and force English
-    let base_url = url_from_id(&id_from_url(url)?);
+    let base_url = url_from_id(&id_from_url(url)?, options);
     // Check for period in original URL and add to result if found
     const PERIOD_TAG: &str = "atm_aiy";
     let url_obj = Url::try_from(url).to_result()?;
@@ -140,8 +147,20 @@ mod tests {
 
     #[test]
     fn url_fixing() {
-        let url = url_from_id(ID);
+
+        // Use .us when not specified in options.
+        let url = url_from_id(ID, None);
         let expected = std::format!("https://books.google.us/books?id={ID}&hl=en");
+        assert_eq!(url, expected);
+
+        // Use specified TLD from options.
+        let tld = ".co.jp";
+        let options = ScraperOptions {
+            tld: tld.to_string(),
+            ..Default::default()
+        };
+        let url = url_from_id(ID, Some(&options));
+        let expected = std::format!("https://books.google{tld}/books?id={ID}&hl=en");
         assert_eq!(url, expected);
     }
 }
