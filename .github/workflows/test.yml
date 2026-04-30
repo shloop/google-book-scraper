@@ -2,8 +2,9 @@ name: Test
 
 on: 
   push:
-    branches: 
-      - main
+    # Don't run tests when pushing to branches that start with "action_". 
+    # These are used for testing other workflows.
+    branches-ignore: [ "action_*" ]
   pull_request:
 
 env:
