@@ -10,8 +10,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  GH_TOKEN: ${{ github.token }}
-
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+  
 jobs:
 
   run:
@@ -29,4 +29,4 @@ jobs:
         env:
             VERSION: ${{ github.event.release.tag_name || steps.lastversion.outputs.release  }}
         run: |
-          echo "latest version: $VERSION"
+          echo "latest version: $env:VERSION"

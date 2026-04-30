@@ -13,7 +13,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  GH_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   
 jobs:
 
@@ -55,7 +55,7 @@ jobs:
 
       - name: Run tests
         if: steps.check_tag.outputs.exists != 'true'
-        run: cargo test --verbose
+        run: cargo test
 
       - name: Update attribution
         if: steps.check_tag.outputs.exists != 'true'
