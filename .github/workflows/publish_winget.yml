@@ -38,3 +38,4 @@ jobs:
           installers-regex: '\.exe$' # Only .exe files
           token: ${{ secrets.WINGET_TOKEN }}
           version: ${{ steps.get_version.outputs.version }}
+          release-tag: ${{ steps.get_version.outputs.tag }}
