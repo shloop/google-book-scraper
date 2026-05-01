@@ -7,6 +7,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
+  VERSION: 0.4.0
 
 permissions:
   contents: write
@@ -18,36 +19,35 @@ jobs:
     strategy:
       matrix:
         platform: 
-          - name: Windows-x86_64
-            arch: x64compatible
-            target: x86_64-pc-windows-msvc
-            filename: google-book-scraper-0.3.8-windows-x64-installer
           - name: Windows-i686
             arch: x86compatible
             target: i686-pc-windows-msvc
-            filename: google-book-scraper-0.3.8-windows-x86-installer
+            filename: google-book-scraper-$env:VERSION-windows-x86-installer
+          - name: Windows-x86_64
+            arch: x64compatible
+            target: x86_64-pc-windows-msvc
+            filename: google-book-scraper-$env:VERSION-windows-x64-installer
           - name: Windows-aarch64
             arch: arm64
             target: aarch64-pc-windows-msvc
-            filename: google-book-scraper-0.3.8-windows-arm64-installer
+            filename: google-book-scraper-$env:VERSION-windows-arm64-installer
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v6
     - name: Configure Build
-      run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $Env:GITHUB_ENV
+      run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $env:GITHUB_ENV
     - name: Build
       run: |
         rustup target add ${{ matrix.platform.target }}
         cargo build --release --target ${{ matrix.platform.target }}
     - name: Build installer
       env: 
-        VERSION: 0.3.8
         ARCH: ${{ matrix.platform.arch }}
       run: |
         cp target/${{ matrix.platform.target }}/release/gbscraper.exe .
-        iscc /O"." /F"${{ matrix.platform.filename }}" installer.iss
+        iscc /O"." /F"${{ matrix.platform.filename }}" pkg/winget/installer.iss
     - name: Release
       run: |
-        gh release upload v0.3.8 ${{ matrix.platform.filename }}.exe
+        gh release upload v$env:VERSION ${{ matrix.platform.filename }}.exe
 
