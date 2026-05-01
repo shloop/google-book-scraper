@@ -1,4 +1,5 @@
 name: Test
+description: Run unit tests
 
 on: 
   push:

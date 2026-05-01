@@ -97,7 +97,7 @@ jobs:
           # Windows 32-bit
           - name: Windows-i686
             runs_on: windows-latest
-            arch: x86compatible and not x64compatible
+            arch: x86compatible
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
             filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x86
@@ -105,7 +105,7 @@ jobs:
           # Windows 64-bit (x86)
           - name: Windows-x86_64
             runs_on: windows-latest
-            arch: x64compatible and not arm64
+            arch: x64compatible
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
             filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x64
