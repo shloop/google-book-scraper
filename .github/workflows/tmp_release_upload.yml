@@ -14,30 +14,45 @@ permissions:
 
 jobs:
 
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set version
+        id: set_version
+        run: |
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
   build_installers:
     name: Rebuild installers
+    needs: setup
     strategy:
       matrix:
         platform: 
           - name: Windows-i686
             arch: x86compatible
             target: i686-pc-windows-msvc
-            filename: google-book-scraper-$env:VERSION-windows-x86
+            filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-x86
           - name: Windows-x86_64
             arch: x64compatible
             target: x86_64-pc-windows-msvc
-            filename: google-book-scraper-$env:VERSION-windows-x64
+            filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-x64
           - name: Windows-aarch64
             arch: arm64
             target: aarch64-pc-windows-msvc
-            filename: google-book-scraper-$env:VERSION-windows-arm64
+            filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-arm64
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v6
     - name: Work
       env:
-        TAG: v$env:VERSION
+        TAG: v${{ needs.setup.outputs.version }}
         INSTALLER_BASE: ${{ matrix.platform.filename }}-installer
         INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
         PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
