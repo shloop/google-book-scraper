@@ -15,39 +15,42 @@ permissions:
 jobs:
 
   build_installers:
-    name: Build installers
+    name: Rebuild installers
     strategy:
       matrix:
         platform: 
           - name: Windows-i686
             arch: x86compatible
             target: i686-pc-windows-msvc
-            filename: google-book-scraper-$env:VERSION-windows-x86-installer
+            filename: google-book-scraper-$env:VERSION-windows-x86
           - name: Windows-x86_64
             arch: x64compatible
             target: x86_64-pc-windows-msvc
-            filename: google-book-scraper-$env:VERSION-windows-x64-installer
+            filename: google-book-scraper-$env:VERSION-windows-x64
           - name: Windows-aarch64
             arch: arm64
             target: aarch64-pc-windows-msvc
-            filename: google-book-scraper-$env:VERSION-windows-arm64-installer
+            filename: google-book-scraper-$env:VERSION-windows-arm64
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v6
-    - name: Configure Build
-      run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $env:GITHUB_ENV
-    - name: Build
+    - name: Work
+      env:
+        TAG: v$env:VERSION
+        INSTALLER_BASE: ${{ matrix.platform.filename }}-installer
+        INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
+        PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
       run: |
-        rustup target add ${{ matrix.platform.target }}
-        cargo build --release --target ${{ matrix.platform.target }}
-    - name: Build installer
-      env: 
-        ARCH: ${{ matrix.platform.arch }}
-      run: |
-        cp target/${{ matrix.platform.target }}/release/gbscraper.exe .
-        iscc /O"." /F"${{ matrix.platform.filename }}" pkg/winget/installer.iss
-    - name: Release
-      run: |
-        gh release upload v$env:VERSION ${{ matrix.platform.filename }}.exe
+        gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
+
+        gh release download $env:TAG $env:PORTABLE_ZIP -y
+
+        7z e $env:PORTABLE_ZIP
+
+        cp pkg/winget/installer.iss .
+
+        iscc /O"." /F"$env:INSTALLER_BASE" pkg/winget/installer.iss
+
+        gh release upload $env:TAG $env:INSTALLER_EXE
 
