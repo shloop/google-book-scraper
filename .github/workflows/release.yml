@@ -4,22 +4,21 @@ description: Create release if version in Cargo.toml has been updated
 on:
   push:
     branches: [ "main" ]
-    paths-ignore: 
-      - attribution.txt
+    paths: [ "Cargo.toml" ]
     
 permissions:
   contents: write
 
 env:
   CARGO_TERM_COLOR: always
-  GH_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
   
 jobs:
 
-  # Step 1: Check if this is a new version and update files as needed
+  # Step 1: Check if this is a new version, run unit tests, update files as needed
 
   prepare:
-    name: Version Check
+    name: Prepare for build
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.check_version.outputs.version }}
@@ -51,6 +50,10 @@ jobs:
         uses: mukunku/tag-exists-action@v1.7.0
         with: 
           tag: '$TAG'
+
+      - name: Run tests
+        if: steps.check_tag.outputs.exists != 'true'
+        run: cargo test
 
       - name: Update attribution
         if: steps.check_tag.outputs.exists != 'true'
@@ -84,9 +87,6 @@ jobs:
     needs: prepare
     if: needs.prepare.outputs.release == 'true'
     runs-on: ${{ matrix.platform.runs_on }}
-    outputs:
-      tag: ${{ needs.prepare.outputs.tag }}
-      branch: ${{ needs.prepare.outputs.branch }}
     strategy:
       matrix:
         platform: 
@@ -97,7 +97,7 @@ jobs:
           # Windows 32-bit
           - name: Windows-i686
             runs_on: windows-latest
-            arch: x86compatible and not x64compatible
+            arch: x86compatible
             target: i686-pc-windows-msvc
             bin: gbscraper.exe
             filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x86
@@ -105,7 +105,7 @@ jobs:
           # Windows 64-bit (x86)
           - name: Windows-x86_64
             runs_on: windows-latest
-            arch: x64compatible and not arm64
+            arch: x64compatible
             target: x86_64-pc-windows-msvc
             bin: gbscraper.exe
             filename: google-book-scraper-${{ needs.prepare.outputs.version }}-windows-x64
@@ -158,6 +158,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          # Check out branch head in case updates were pushed by this workflow
           ref: ${{ needs.prepare.outputs.branch }}
 
       - name: Configure Build (x86 Linux)
@@ -172,7 +173,7 @@ jobs:
 
       - name: Configure Build (Windows)
         if: matrix.platform.runs_on == 'windows-latest'
-        run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $GITHUB_ENV
+        run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $Env:GITHUB_ENV
 
       - name: Build
         run: |
@@ -197,7 +198,7 @@ jobs:
         run: |
           cd publish
           7z a ../${{ matrix.platform.filename }}-portable.zip *
-          cp ../installer.iss .
+          cp ../pkg/winget/installer.iss .
           iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
 
       - name: Create release files (Mac/Linux)
@@ -234,14 +235,15 @@ jobs:
 
   create_release:
     name: Create release
-    needs: build
+    needs: [ prepare, build ]
     runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     steps:
 
       - uses: actions/checkout@v6
         with:
-          ref: ${{ needs.build.outputs.branch }} 
+          # Check out branch head in case updates were pushed by this workflow
+          ref: ${{ needs.prepare.outputs.branch }} 
 
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -252,4 +254,4 @@ jobs:
 
       - name: Create release
         run: |
-          gh release create ${{ needs.build.outputs.tag }} -t ${{ needs.build.outputs.tag }} --target ${{ needs.build.outputs.branch }} -F release_notes.md -d ./dist/*
+          gh release create ${{ needs.prepare.outputs.tag }} -t ${{ needs.prepare.outputs.tag }} --target ${{ needs.prepare.outputs.branch }} -F release_notes.md ./dist/*

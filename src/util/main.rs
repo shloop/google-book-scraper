@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 use gbscraper::*;
 use std::collections::HashSet;
+use crate::scraper::FALLBACK_TLD;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -42,6 +43,11 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     verbose: bool,
 
+    /// The top level domain to normalize URLs to for downloading. If omitted, ".us" will be used.
+    /// Set to "none" to disable URL normalization and use TLD from provided URL.
+    #[arg(short, long)]
+    tld_override: Option<String>,
+    
     // TODO: File naming scheme
 }
 
@@ -83,44 +89,74 @@ impl Args {
                 }
             },
             archive_file: self.archive.clone(),
-            already_downloaded: {
-                let mut set = HashSet::<String>::new();
-                if let Some(file) = self.archive.as_ref() {
-                    if std::fs::exists(file)? {
-                        for line in std::fs::read_to_string(file)?.lines() {
-                            let trimmed = line.trim();
-                            if !trimmed.is_empty() {
-                                set.insert(trimmed.to_string());
-                            }
-                        }
-                    }
-                }
-                set
-            },
             skip_download: false,
             download_attempts: self.download_attempts,
             verbose: self.verbose,
+            tld: match &self.tld_override {
+                // None, provided, use default
+                None => FALLBACK_TLD.to_string(),
+                Some(tld) => match tld.to_lowercase().as_str() {
+                    // Provided "none", disable normalization and use TLD from URL.
+                    "none" => match tldextract::TldExtractor::new(tldextract::TldOption::default())
+                        .extract(&self.url)
+                    {
+                        Ok(x) => match x.suffix {
+                            Some(x) => format!(".{x}"),
+                            None => FALLBACK_TLD.to_string(),
+                        },
+                        Err(_) => FALLBACK_TLD.to_string(),
+                    },
+                    // Provided TLD, use it.
+                    _ => tld.to_string(),
+                },
+            },
         })
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let mut options = match args.to_options() {
+    let options = match args.to_options() {
         Ok(opts) => opts,
         Err(e) => {
             eprintln!("Error: {}", e);
             std::process::exit(1);
         }
     };
-    let result = match args.download_mode {
-        DownloadMode::Single => {
-            scraper::download_issue(&args.url, &args.target_dir, &mut options).map(|_| ())
+    let mut already_downloaded = HashSet::<String>::new();
+    if let Some(file) = args.archive.as_ref() {
+        if std::fs::exists(file)? {
+            for line in std::fs::read_to_string(file)?.lines() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    already_downloaded.insert(trimmed.to_string());
+                }
+            }
         }
-        DownloadMode::Period => scraper::download_period(&args.url, &args.target_dir, &mut options),
-        DownloadMode::Full => scraper::download_all(&args.url, &args.target_dir, &mut options),
+    }
+    let result = match args.download_mode {
+        DownloadMode::Single => scraper::download_issue_skip_downloaded(
+            &args.url,
+            &args.target_dir,
+            &options,
+            Some(&mut already_downloaded),
+        )
+        .map(|_| ()),
+        DownloadMode::Period => scraper::download_period(
+            &args.url,
+            &args.target_dir,
+            &options,
+            &mut already_downloaded,
+        ),
+        DownloadMode::Full => scraper::download_all(
+            &args.url,
+            &args.target_dir,
+            &options,
+            &mut already_downloaded,
+        ),
     };
     if let Err(x) = result {
         eprintln!("Scraper error: {}", x);
     }
+    Ok(())
 }

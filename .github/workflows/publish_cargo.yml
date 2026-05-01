@@ -1,0 +1,28 @@
+name: Publish to crates.io
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+jobs:
+
+  publish_crate:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    # environment: release  # Optional: for enhanced security
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Authorize with crates.io
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

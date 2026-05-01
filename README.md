@@ -16,7 +16,15 @@ Use of this tool is at your own risk.
 
 Portable releases are provided for a variety of platforms in the [releases](https://github.com/shloop/google-book-scraper/releases) section. Alternatively, you can use one of the following methods according to your environment:
 
-#### Homebrew
+#### Windows
+
+You can install with WinGet by executing the following command in a PowerShell window:
+
+```bash
+winget install shloop.gbscraper
+```
+
+#### MacOS/Linux
 
 If you have [Homebrew](https://brew.sh/) installed on macOS or Linux (x64 or ARM for either OS), you can install by executing:
 
@@ -24,7 +32,7 @@ If you have [Homebrew](https://brew.sh/) installed on macOS or Linux (x64 or ARM
 brew install shloop/tap/google-book-scraper
 ```
 
-#### Cargo
+#### Other
 
 If you have a [Rust development environment](https://www.rust-lang.org/tools/install) set up, you can install by executing:
 
@@ -33,7 +41,7 @@ cargo install google-book-scraper
 ```
 
 > [!NOTE]
-> This will compile the program and all its dependencies and may take a while.
+> This will compile the program and all its dependencies from source and may take a while.
 
 ### Basic Usage
 
@@ -81,6 +89,8 @@ Options:
           Number of times to attempt downloading any file before giving up on book. Set to 0 to try indefinitely [default: 3]
   -v, --verbose
           If set, extra output will be given
+  -t, --tld-override <TLD_OVERRIDE>
+          The top level domain to normalize URLs to for downloading. If omitted, ".us" will be used. Set to "none" to disable URL normalization and use TLD from provided URL
   -h, --help
           Print help
   -V, --version

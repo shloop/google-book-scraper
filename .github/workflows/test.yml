@@ -1,9 +1,14 @@
 name: Test
+description: Run unit tests
 
 on: 
   push:
-    branches: 
-      - main
+    # Don't run tests on changes to license files, documentation, or workflow files
+    paths-ignore:
+      - '**.md'
+      - '**.yml'
+      - '**.txt'
+      - 'LICENSE*'
   pull_request:
 
 env:
@@ -14,8 +19,8 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Build
-      run: cargo build --verbose
+      run: cargo build
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test

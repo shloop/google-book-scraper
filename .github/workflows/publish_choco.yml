@@ -1,0 +1,77 @@
+name: Publish to Chocolatey
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+jobs:  
+  publish_choco:
+    name: Publish to Chocolatey
+    runs-on: windows-latest
+    steps:
+
+      - name: Determine latest version
+        id: latest_version
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Get release version
+        id: get_version
+        env:
+          # Get version from current release if workflow was triggered by release, otherwise use latest release version
+          TAG: ${{ github.event.release.tag_name || steps.latest_version.outputs.release  }}
+        run: |
+          # Get version without preceding 'v'
+          VERSION=${TAG#v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Package and upload to Chocolatey
+        run: |
+          $VERSION = ${{ steps.get_version.outputs.version }}
+          $TAG = ${{ steps.get_version.outputs.tag }}
+
+          # Download portable binaries from release and place in tools directory
+          mkdir dist
+          gh release download $TAG --pattern '*.zip' -D dist
+          $z32 = "google-book-scraper-$VERSION-windows-x86-portable.zip"
+          $z64 = "google-book-scraper-$VERSION-windows-x64-portable.zip"
+          mv dist/$z32 pkg/choco/tools
+          mv dist/$z64 pkg/choco/tools
+
+          # Generate combined license file
+          $lcns = "pkg/choco/tools/LICENSE.txt"
+          echo "This software is licensed under the MIT and Apache-2.0 licenses, which are contained below" > $lcns
+          echo "The licenses for the libraries used by this software can be found in attribution.txt" >> $lcns
+          echo "" >> $lcns
+          echo "=== MIT License ===" >> $lcns
+          echo "" >> $lcns
+          cat LICENSE-MIT >> $lcns
+          echo "" >> $lcns
+          echo "=== Apache-2.0 License ===" >> $lcns
+          echo "" >> $lcns
+          cat LICENSE-APACHE >> $lcns
+
+          # Configure files for this version
+          cd pkg/choco
+          (Get-Content gbscraper.nuspec).Replace('$VERSION', $VERSION) | Set-Content gbscraper.nuspec
+          (Get-Content tools/chocolateyinstall.ps1).Replace('$VERSION', $VERSION) | Set-Content tools/chocolateyinstall.ps1
+
+          # Package
+          choco pack
+
+          # Test installation
+          choco install gbscraper -s . -y
+
+          # Push
+          choco apikey --key ${{ secrets.CHOCO_API_KEY }} --source https://push.chocolatey.org/
+          choco push gbscraper.$VERSION.nupkg --source https://push.chocolatey.org/

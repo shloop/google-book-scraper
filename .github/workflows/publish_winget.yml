@@ -1,0 +1,41 @@
+name: Publish to WinGet
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+jobs:
+  publish_winget:
+    name: Publish to WinGet
+    runs-on: ubuntu-slim
+    steps:
+
+      - name: Determine latest version
+        id: latest_version
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Get release version
+        id: get_version
+        env:
+          # Get version from current release if workflow was triggered by release, otherwise use latest release version
+          TAG: ${{ github.event.release.tag_name || steps.latest_version.outputs.release  }}
+        run: |
+          # Get version without preceding 'v'
+          VERSION=${TAG#v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Release project to WinGet
+        uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: shloop.gbscraper
+          installers-regex: '\.exe$' # Only .exe files
+          token: ${{ secrets.WINGET_TOKEN }}
+          version: ${{ steps.get_version.outputs.version }}
+          release-tag: ${{ steps.get_version.outputs.tag }}

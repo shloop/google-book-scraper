@@ -1,0 +1,27 @@
+name: Publish to brew tap
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+jobs:
+  publish_homebrew:
+    name: Publish to brew tap
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release project to Homebrew tap
+        uses: Justintime50/homebrew-releaser@v3
+        with:
+          homebrew_owner: shloop
+          homebrew_tap: homebrew-tap
+          github_token: ${{ secrets.TAP_TOKEN }}
+          target_darwin_amd64: true
+          target_darwin_arm64: true
+          target_linux_amd64: true
+          target_linux_arm64: true
+          install: 'bin.install "gbscraper"'
+          update_readme_table: true

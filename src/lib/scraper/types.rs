@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 use scraper::selectable::Selectable;
 use scraper::{Html, Selector};
-use std::collections::HashSet;
 use std::io::{self};
 
 use super::helpers::*;
@@ -9,14 +8,14 @@ use super::helpers::*;
 pub use json_api::IssueJson;
 pub use json_api::PageJson;
 
+pub const FALLBACK_TLD: &str = ".us";
+
 /// Scrape options.
 pub struct ScraperOptions {
     /// If true, downloaded images will not be deleted after conversion.
     pub keep_images: bool,
     /// Format(s) to convert downloaded images to.
     pub formats: FormatFlags,
-    /// IDs of issues to skip.
-    pub already_downloaded: HashSet<String>,
     /// File to store IDs of already downloaded books.
     pub archive_file: Option<String>,
     /// If true, only retrieve metadata without downloading or processing images.
@@ -25,6 +24,8 @@ pub struct ScraperOptions {
     pub download_attempts: u32,
     /// If true, extra output will be given.
     pub verbose: bool,
+    /// Top level domain to use for URLs.
+    pub tld: String,
 }
 
 impl Default for ScraperOptions {
@@ -32,11 +33,11 @@ impl Default for ScraperOptions {
         Self {
             keep_images: false,
             formats: FormatFlags::Pdf,
-            already_downloaded: HashSet::new(),
             archive_file: None,
             skip_download: false,
             download_attempts: 3,
             verbose: false,
+            tld: FALLBACK_TLD.to_string(),
         }
     }
 }
