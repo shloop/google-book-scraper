@@ -63,7 +63,9 @@ jobs:
 
         gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
 
-        gh release download $env:TAG $env:PORTABLE_ZIP -y
+        gh release download $env:TAG $env:PORTABLE_ZIP
+
+        ls
 
         7z x $env:PORTABLE_ZIP
 
