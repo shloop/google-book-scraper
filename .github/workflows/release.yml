@@ -4,9 +4,7 @@ description: Create release if version in Cargo.toml has been updated
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      # Ignore pushes that update attribution.txt, as it is done automatically by this workflow
-      - attribution.txt
+    paths: [ "Cargo.toml" ]
     
 permissions:
   contents: write

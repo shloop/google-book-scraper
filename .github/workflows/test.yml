@@ -4,10 +4,10 @@ on:
   push:
     # Don't run tests on changes to license files, documentation, or workflow files
     paths-ignore:
-      - "*.md"
-      - "*.yml"
-      - "*.txt"
-      - "LICENSE*"
+      - '**.md'
+      - '**.yml'
+      - '**.txt'
+      - 'LICENSE*'
   pull_request:
 
 env:
