@@ -1,4 +1,4 @@
-name: Update installers
+name: Rebuild installers
 
 on:
   push:
@@ -58,18 +58,20 @@ jobs:
         PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
       run: |
 
-        mkdir tmp
-        cd tmp
+        echo "don't run this workflow unless winget publish fails and you need to rebuild the installers"
 
-        gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
+        # mkdir tmp
+        # cd tmp
 
-        gh release download $env:TAG -p $env:PORTABLE_ZIP
+        # gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
 
-        7z x $env:PORTABLE_ZIP
+        # gh release download $env:TAG -p $env:PORTABLE_ZIP
 
-        cp ../pkg/winget/installer.iss .
+        # 7z x $env:PORTABLE_ZIP
 
-        iscc /O"." /F"$env:INSTALLER_BASE" installer.iss
+        # cp ../pkg/winget/installer.iss .
 
-        gh release upload $env:TAG $env:INSTALLER_EXE
+        # iscc /O"." /F"$env:INSTALLER_BASE" installer.iss
+
+        # gh release upload $env:TAG $env:INSTALLER_EXE
 
