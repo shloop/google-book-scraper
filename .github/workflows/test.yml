@@ -2,9 +2,12 @@ name: Test
 
 on: 
   push:
-    # Don't run tests when pushing to branches that start with "action_". 
-    # These are used for testing other workflows.
-    branches-ignore: [ "action_*" ]
+    # Don't run tests on changes to license files, documentation, or workflow files
+    paths-ignore:
+      - *.md
+      - *.yml
+      - *.txt
+      - LICENSE-*
   pull_request:
 
 env:
