@@ -57,15 +57,19 @@ jobs:
         INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
         PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
       run: |
+
+        mkdir tmp
+        cd tmp
+
         gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
 
         gh release download $env:TAG $env:PORTABLE_ZIP -y
 
-        7z e $env:PORTABLE_ZIP
+        7z x $env:PORTABLE_ZIP
 
-        cp pkg/winget/installer.iss .
+        cp ../pkg/winget/installer.iss .
 
-        iscc /O"." /F"$env:INSTALLER_BASE" pkg/winget/installer.iss
+        iscc /O"." /F"$env:INSTALLER_BASE" installer.iss
 
         gh release upload $env:TAG $env:INSTALLER_EXE
 
