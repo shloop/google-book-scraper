@@ -57,6 +57,9 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
     
+    - name: winget install test
+      run: winget install shloop.gbscraper
+
     - name: Outputs
       id: env
       run: |
