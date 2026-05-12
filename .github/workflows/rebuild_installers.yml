@@ -51,7 +51,7 @@ jobs:
       ARCH: ${{ matrix.platform.arch }}
       TAG: v${{ needs.setup.outputs.version }}
       INSTALLER_BASE: ${{ matrix.platform.filename }}-installer
-      INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
+      # INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
       PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
 
     runs-on: ${{ matrix.platform.runs_on }}
@@ -60,7 +60,7 @@ jobs:
     - name: Outputs
       id: env
       run: |
-        echo "installer_exe=$Env:INSTALLER_EXE" >> $GITHUB_OUTPUT
+        echo "installer_exe=${{ matrix.platform.filename }}-installer.exe" >> $GITHUB_OUTPUT
 
     - name: Test current installer
       run: |
