@@ -59,7 +59,7 @@ jobs:
     
     - name: winget install test
       run: |
-        Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+        Add-AppxPackage -RegisterByFamilyName -MainPackage -Confirm Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
         winget install shloop.gbscraper
 
     - name: Outputs
