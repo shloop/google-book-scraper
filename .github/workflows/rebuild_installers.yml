@@ -64,9 +64,9 @@ jobs:
 
     - name: Test current installer
       run: |
-        gh release download -R shloop/google-book-scraper $Env:TAG -p $Env:INSTALLER_EXE
+        gh release download -R shloop/google-book-scraper $Env:TAG -p ${{ steps.env.outputs.installer_exe }}
         ls
-        echo "${{ steps.env.outputs.installer_exe }}"
+        echo "please print: ${{ steps.env.outputs.installer_exe }}"
         ./${{ steps.env.outputs.installer_exe }} /VerySilent /LOG=./log.txt
         ls
         cat ./log.txt
