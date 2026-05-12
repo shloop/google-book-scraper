@@ -60,14 +60,15 @@ jobs:
     - name: Test current installer
       continue-on-error: true
       run: |
-        gh release download -R shloop/google-book-scraper $env:TAG -p $env:INSTALLER_EXE
+        gh release download -R shloop/google-book-scraper $Env:TAG -p $Env:INSTALLER_EXE
         ls
-        iex "./$env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
+        echo "about to run iex ./$Env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
+        iex "./$Env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
         ls
         cat ./log.txt
         gbscraper --version
         echo $(gbscraper --version)
-        rm ".\$env:INSTALLER_EXE"
+        rm ".\$Env:INSTALLER_EXE"
 
     - name: Checkout
       uses: actions/checkout@v6
@@ -93,20 +94,22 @@ jobs:
     - name: Create release files
       run: |
         cd publish
-        7z a ../$env:PORTABLE_ZIP *
+        7z a "../$Env:PORTABLE_ZIP" *
         cp ../pkg/winget/installer.iss .
-        iscc /O".." /F"$env:INSTALLER_BASE" installer.iss
+        iscc /O".." /F"$Env:INSTALLER_BASE" installer.iss
+        cd ..
+        ls
 
     - name: Upload portable artifact
       uses: actions/upload-artifact@v7
       with:
-        path: $env:PORTABLE_ZIP
+        path: $Env:PORTABLE_ZIP
         archive: false
 
     - name: Upload installer artifact
       uses: actions/upload-artifact@v7
       with:
-        path: $env:INSTALLER_EXE
+        path: $Env:INSTALLER_EXE
         archive: false
 
     - name: Test built installer
@@ -115,17 +118,17 @@ jobs:
         echo "don't run this workflow unless winget publish fails and you need to rebuild the installers"
 
         # gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
-        # gh release delete-asset $env:TAG $env:PORTABLE_ZIP -y
+        # gh release delete-asset $Env:TAG $Env:PORTABLE_ZIP -y
 
         ## build installer from existingrelease asset
-        # gh release download $env:TAG -p $env:PORTABLE_ZIP
-        # 7z x $env:PORTABLE_ZIP
+        # gh release download $Env:TAG -p $Env:PORTABLE_ZIP
+        # 7z x $Env:PORTABLE_ZIP
         # cp ../pkg/winget/installer.iss .
-        # iscc /O"." /F"$env:INSTALLER_BASE" installer.iss
+        # iscc /O"." /F"$Env:INSTALLER_BASE" installer.iss
 
-        # gh release upload $env:TAG $env:INSTALLER_EXE
-        # gh release upload $env:TAG $env:PORTABLE_ZIP
+        # gh release upload $Env:TAG $Env:INSTALLER_EXE
+        # gh release upload $Env:TAG $Env:PORTABLE_ZIP
 
         # test installer
-        & ".\$env:INSTALLER_EXE" /VerySilent
+        & ".\$Env:INSTALLER_EXE" /VerySilent
 
