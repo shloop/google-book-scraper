@@ -57,10 +57,15 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
 
+    - uses: actions/download-artifact@v8
+      with:
+        run-id: 25710679083
+        artifact-ids: 6934760203
+
     - name: Test current installer
-      continue-on-error: true
+      # continue-on-error: true
       run: |
-        gh release download -R shloop/google-book-scraper $Env:TAG -p $Env:INSTALLER_EXE
+        # gh release download -R shloop/google-book-scraper $Env:TAG -p $Env:INSTALLER_EXE
         ls
         echo "about to run iex ./$Env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
         iex "./$Env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
