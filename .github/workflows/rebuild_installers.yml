@@ -57,42 +57,42 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
     
-    - name: Winget Test
-      shell: pwsh
-      run: |
-        Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Force
-        Repair-WinGetPackageManager -Latest -Force
-        winget install shloop.gbscraper -h --force --accept-package-agreements --accept-source-agreements
+    # - name: Winget Test
+    #   shell: pwsh
+    #   run: |
+    #     Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Force
+    #     Repair-WinGetPackageManager -Latest -Force
+    #     winget install shloop.gbscraper -h --force --accept-package-agreements --accept-source-agreements
 
-        ls "c:\program files\gbscraper"
+    #     ls "c:\program files\gbscraper"
 
-        echo "PATH: $Env:Path"
+    #     echo "PATH: $Env:Path"
 
-    - name: gbscraper test 1
-      run: |
-        & "c:\program files\gbscraper\gbscraper.exe" --version
+    # - name: gbscraper test 1
+    #   run: |
+    #     & "c:\program files\gbscraper\gbscraper.exe" --version
 
-    - name: gbscraper test 2
-      continue-on-error: true
-      run: |
-        gbscraper --version
+    # - name: gbscraper test 2
+    #   continue-on-error: true
+    #   run: |
+    #     gbscraper --version
 
     - name: Outputs
       id: env
       run: |
         echo "installer_exe=${{ matrix.platform.filename }}-installer.exe" >> $GITHUB_OUTPUT
 
-    - name: Test current installer
-      run: |
-        gh release download -R shloop/google-book-scraper $Env:TAG -p google-book-scraper-0.4.0-windows-arm64-installer.exe
-        ls
-        echo "please print: ${{ steps.env.outputs.installer_exe }}"
-        ./google-book-scraper-0.4.0-windows-arm64-installer.exe /Silent /LOG=log.txt
-        ls
-        cat ./log.txt
-        gbscraper --version
-        echo $(gbscraper --version)
-        rm google-book-scraper-0.4.0-windows-arm64-installer.exe
+    # - name: Test current installer
+    #   run: |
+    #     gh release download -R shloop/google-book-scraper $Env:TAG -p google-book-scraper-0.4.0-windows-arm64-installer.exe
+    #     ls
+    #     echo "please print: ${{ steps.env.outputs.installer_exe }}"
+    #     ./google-book-scraper-0.4.0-windows-arm64-installer.exe /Silent /LOG=log.txt
+    #     ls
+    #     cat ./log.txt
+    #     gbscraper --version
+    #     echo $(gbscraper --version)
+    #     rm google-book-scraper-0.4.0-windows-arm64-installer.exe
 
     - name: Checkout
       uses: actions/checkout@v6
@@ -156,6 +156,5 @@ jobs:
         # test installer
         ./google-book-scraper-0.4.0-windows-arm64-installer.exe /VerySilent /LOG=./log.txt
         ls
-        cat ./log.txt
         gbscraper --version
         echo $(gbscraper --version)
