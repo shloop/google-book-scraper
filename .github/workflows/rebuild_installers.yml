@@ -64,15 +64,15 @@ jobs:
 
     - name: Test current installer
       run: |
-        gh release download -R shloop/google-book-scraper $Env:TAG -p ${{ steps.env.outputs.installer_exe }}
+        gh release download -R shloop/google-book-scraper $Env:TAG -p google-book-scraper-0.4.0-windows-arm64-installer.exe
         ls
         echo "please print: ${{ steps.env.outputs.installer_exe }}"
-        ./${{ steps.env.outputs.installer_exe }} /VerySilent /LOG=./log.txt
+        ./google-book-scraper-0.4.0-windows-arm64-installer.exe /VerySilent /LOG=./log.txt
         ls
         cat ./log.txt
         gbscraper --version
         echo $(gbscraper --version)
-        rm ${{ steps.env.outputs.installer_exe }}
+        rm google-book-scraper-0.4.0-windows-arm64-installer.exe
 
     - name: Checkout
       uses: actions/checkout@v6
@@ -134,7 +134,7 @@ jobs:
         # gh release upload $Env:TAG $Env:PORTABLE_ZIP
 
         # test installer
-        ./${{ steps.env.outputs.installer_exe }} /VerySilent /LOG=./log.txt
+        ./google-book-scraper-0.4.0-windows-arm64-installer.exe /VerySilent /LOG=./log.txt
         ls
         cat ./log.txt
         gbscraper --version
