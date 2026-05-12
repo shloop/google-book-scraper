@@ -130,5 +130,10 @@ jobs:
         # gh release upload $Env:TAG $Env:PORTABLE_ZIP
 
         # test installer
-        & ".\$Env:INSTALLER_EXE" /VerySilent
+        iex "./$Env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
+        ls
+        cat ./log.txt
+        gbscraper --version
+        echo $(gbscraper --version)
+
 
