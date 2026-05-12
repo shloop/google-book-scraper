@@ -61,8 +61,9 @@ jobs:
       run: |
         gh release download -R shloop/google-book-scraper $env:TAG -p $env:INSTALLER_EXE
         & ".\$env:INSTALLER_EXE" /VerySilent
-        rm $env:INSTALLER_EXE
         gbscraper --version
+        echo $(gbscraper --version)
+        rm ".\$env:INSTALLER_EXE"
 
     - name: Checkout
       uses: actions/checkout@v6
