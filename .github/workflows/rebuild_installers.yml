@@ -57,25 +57,22 @@ jobs:
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
     
-    - name: Install Winget PowerShell Module
-      shell: pwsh
-      run: Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Force
-
-    - name: Install Winget
+    - name: Winget Test
       shell: pwsh
       run: |
+        Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Force
         Repair-WinGetPackageManager -Latest -Force
         Write-Output "Winget Version: $(winget --version)"
-
-    - name: Use Winget
-      shell: pwsh
-      run: |
         winget install shloop.gbscraper --force --accept-package-agreements --accept-source-agreements
 
-    - name: Try
-      shell: pwsh
-      run: |
+        ls "c:\program files"
+        ls "c:\"
+
+        echo "PATH: $Env:Path"
+
         gbscraper --version
+
+   
 
     - name: Outputs
       id: env
