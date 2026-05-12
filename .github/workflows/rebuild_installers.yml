@@ -16,7 +16,7 @@ jobs:
 
   setup:
     name: Setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       version: ${{ steps.set_version.outputs.version }}
     steps:
@@ -46,8 +46,23 @@ jobs:
             runs_on: windows-11-arm
             target: aarch64-pc-windows-msvc
             filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-arm64
+
+    env:
+      ARCH: ${{ matrix.platform.arch }}
+      TAG: v${{ needs.setup.outputs.version }}
+      INSTALLER_BASE: ${{ matrix.platform.filename }}-installer
+      INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
+      PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
+
     runs-on: ${{ matrix.platform.runs_on }}
     steps:
+
+    - name: Test current installer
+      run: |
+        gh release download $env:TAG -p $env:INSTALLER_EXE
+        & ".\$env:INSTALLER_EXE" /VerySilent
+        rm $env:INSTALLER_EXE
+        gbscraper --version
 
     - name: Checkout
       uses: actions/checkout@v6
@@ -71,37 +86,41 @@ jobs:
         mv target/${{ matrix.platform.target }}/release/gbscraper.exe publish
 
     - name: Create release files
-      env: 
-        ARCH: ${{ matrix.platform.arch }}
       run: |
         cd publish
-        7z a ../${{ matrix.platform.filename }}-portable.zip *
+        7z a ../$env:PORTABLE_ZIP *
         cp ../pkg/winget/installer.iss .
-        iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
+        iscc /O".." /F"$env:INSTALLER_BASE" installer.iss
 
-    - name: Work
-      env:
-        TAG: v${{ needs.setup.outputs.version }}
-        INSTALLER_BASE: ${{ matrix.platform.filename }}-installer
-        INSTALLER_EXE: ${{ matrix.platform.filename }}-installer.exe
-        PORTABLE_ZIP: ${{ matrix.platform.filename }}-portable.zip
+    - name: Upload portable artifact
+      uses: actions/upload-artifact@v7
+      with:
+        path: $env:PORTABLE_ZIP
+        archive: false
+
+    - name: Upload installer artifact
+      uses: actions/upload-artifact@v7
+      with:
+        path: $env:INSTALLER_EXE
+        archive: false
+
+    - name: Test built installer
       run: |
 
         echo "don't run this workflow unless winget publish fails and you need to rebuild the installers"
 
-        mkdir tmp
-        cd tmp
+        # gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
+        # gh release delete-asset $env:TAG $env:PORTABLE_ZIP -y
 
-        gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
-        gh release delete-asset $env:TAG $env:PORTABLE_ZIP -y
-
+        ## build installer from existingrelease asset
         # gh release download $env:TAG -p $env:PORTABLE_ZIP
         # 7z x $env:PORTABLE_ZIP
         # cp ../pkg/winget/installer.iss .
         # iscc /O"." /F"$env:INSTALLER_BASE" installer.iss
 
-        gh release upload $env:TAG $env:INSTALLER_EXE
-        gh release upload $env:TAG $env:PORTABLE_ZIP
+        # gh release upload $env:TAG $env:INSTALLER_EXE
+        # gh release upload $env:TAG $env:PORTABLE_ZIP
 
+        # test installer
         & ".\$env:INSTALLER_EXE" /VerySilent
 
