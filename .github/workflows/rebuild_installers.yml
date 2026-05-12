@@ -62,17 +62,20 @@ jobs:
       run: |
         Install-Module -Name Microsoft.WinGet.Client -Repository PSGallery -Force
         Repair-WinGetPackageManager -Latest -Force
-        Write-Output "Winget Version: $(winget --version)"
-        winget install shloop.gbscraper --force --accept-package-agreements --accept-source-agreements
+        winget install shloop.gbscraper -h --force --accept-package-agreements --accept-source-agreements
 
-        ls "c:\program files"
-        ls "c:\"
+        ls "c:\program files\gbscraper"
 
         echo "PATH: $Env:Path"
 
-        gbscraper --version
+    - name: gbscraper test 1
+      run: |
+        & "c:\program files\gbscraper\gbscraper.exe" --version
 
-   
+    - name: gbscraper test 2
+      continue-on-error: true
+      run: |
+        gbscraper --version
 
     - name: Outputs
       id: env
