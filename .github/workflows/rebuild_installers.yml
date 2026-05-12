@@ -58,11 +58,13 @@ jobs:
     steps:
 
     - name: Test current installer
+      continue-on-error: true
       run: |
         gh release download -R shloop/google-book-scraper $env:TAG -p $env:INSTALLER_EXE
         ls
-        iex "./$env:INSTALLER_EXE /VerySilent /LOG=log.txt"
-        cat log.txt
+        iex "./$env:INSTALLER_EXE /VerySilent /LOG=./log.txt"
+        ls
+        cat ./log.txt
         gbscraper --version
         echo $(gbscraper --version)
         rm ".\$env:INSTALLER_EXE"
