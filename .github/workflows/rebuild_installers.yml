@@ -70,7 +70,7 @@ jobs:
     - name: Use Winget
       shell: pwsh
       run: |
-        winget install shloop.gbscraper --force
+        winget install shloop.gbscraper --force --accept-package-agreements --accept-source-agreements
 
     - name: Try
       shell: pwsh
