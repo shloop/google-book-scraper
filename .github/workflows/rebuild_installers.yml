@@ -20,9 +20,6 @@ jobs:
     outputs:
       version: ${{ steps.set_version.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
       - name: Set version
         id: set_version
         run: |
@@ -34,22 +31,54 @@ jobs:
     strategy:
       matrix:
         platform: 
-          - name: Windows-i686
-            arch: x86compatible
-            target: i686-pc-windows-msvc
-            filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-x86
-          - name: Windows-x86_64
-            arch: x64compatible
-            target: x86_64-pc-windows-msvc
-            filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-x64
+          # - name: Windows-i686
+          #   arch: x86compatible
+          #   runs_on: windows-latest
+          #   target: i686-pc-windows-msvc
+          #   filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-x86
+          # - name: Windows-x86_64
+          #   arch: x64compatible
+          #   runs_on: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-x64
           - name: Windows-aarch64
             arch: arm64
+            runs_on: windows-11-arm
             target: aarch64-pc-windows-msvc
             filename: google-book-scraper-${{ needs.setup.outputs.version }}-windows-arm64
-    runs-on: windows-latest
+    runs-on: ${{ matrix.platform.runs_on }}
     steps:
+
     - name: Checkout
       uses: actions/checkout@v6
+
+    - name: Set Rust flags
+      run: echo "RUSTFLAGS=-Ctarget-feature=+crt-static" >> $Env:GITHUB_ENV
+
+    - name: Build
+      run: |
+
+        # Build
+        rustup target add ${{ matrix.platform.target }}
+        cargo build --release --target ${{ matrix.platform.target }}
+        
+        # Move/copy files needed for release
+        mkdir publish
+        cp README.md publish
+        cp LICENSE-APACHE publish
+        cp LICENSE-MIT publish
+        cp attribution.txt publish
+        mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
+
+    - name: Create release files
+      env: 
+        ARCH: ${{ matrix.platform.arch }}
+      run: |
+        cd publish
+        7z a ../${{ matrix.platform.filename }}-portable.zip *
+        cp ../pkg/winget/installer.iss .
+        iscc /O".." /F"${{ matrix.platform.filename }}-installer" installer.iss
+
     - name: Work
       env:
         TAG: v${{ needs.setup.outputs.version }}
@@ -60,18 +89,19 @@ jobs:
 
         echo "don't run this workflow unless winget publish fails and you need to rebuild the installers"
 
-        # mkdir tmp
-        # cd tmp
+        mkdir tmp
+        cd tmp
 
-        # gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
+        gh release delete-asset $env:TAG $env:INSTALLER_EXE -y
+        gh release delete-asset $env:TAG $env:PORTABLE_ZIP -y
 
         # gh release download $env:TAG -p $env:PORTABLE_ZIP
-
         # 7z x $env:PORTABLE_ZIP
-
         # cp ../pkg/winget/installer.iss .
-
         # iscc /O"." /F"$env:INSTALLER_BASE" installer.iss
 
-        # gh release upload $env:TAG $env:INSTALLER_EXE
+        gh release upload $env:TAG $env:INSTALLER_EXE
+        gh release upload $env:TAG $env:PORTABLE_ZIP
+
+        & ".\$env:INSTALLER_EXE" /VerySilent
 
