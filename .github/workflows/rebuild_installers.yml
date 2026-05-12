@@ -68,7 +68,7 @@ jobs:
         cp LICENSE-APACHE publish
         cp LICENSE-MIT publish
         cp attribution.txt publish
-        mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} publish
+        mv target/${{ matrix.platform.target }}/release/gbscraper.exe publish
 
     - name: Create release files
       env: 
