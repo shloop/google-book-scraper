@@ -103,13 +103,13 @@ jobs:
     - name: Upload portable artifact
       uses: actions/upload-artifact@v7
       with:
-        path: $Env:PORTABLE_ZIP
+        path: ${{ matrix.platform.filename }}-portable.zip
         archive: false
 
     - name: Upload installer artifact
       uses: actions/upload-artifact@v7
       with:
-        path: $Env:INSTALLER_EXE
+        path: ${{ matrix.platform.filename }}-installer.exe
         archive: false
 
     - name: Test built installer
