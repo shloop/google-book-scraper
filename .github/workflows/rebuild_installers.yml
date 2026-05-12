@@ -66,7 +66,8 @@ jobs:
       run: |
         gh release download -R shloop/google-book-scraper $Env:TAG -p $Env:INSTALLER_EXE
         ls
-        ./${{ steps.env.outputs.installer_exe }} /VerySilent /LOG=./log.txt"
+        echo "${{ steps.env.outputs.installer_exe }}"
+        ./${{ steps.env.outputs.installer_exe }} /VerySilent /LOG=./log.txt
         ls
         cat ./log.txt
         gbscraper --version
