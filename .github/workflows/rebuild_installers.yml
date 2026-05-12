@@ -70,7 +70,12 @@ jobs:
     - name: Use Winget
       shell: pwsh
       run: |
-        winget install shloop.gbscraper
+        winget install shloop.gbscraper --force
+
+    - name: Try
+      shell: pwsh
+      run: |
+        gbscraper --version
 
     - name: Outputs
       id: env
