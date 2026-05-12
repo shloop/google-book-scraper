@@ -60,6 +60,7 @@ jobs:
     - name: Test current installer
       run: |
         gh release download -R shloop/google-book-scraper $env:TAG -p $env:INSTALLER_EXE
+        ls
         & ".\$env:INSTALLER_EXE" /VerySilent
         gbscraper --version
         echo $(gbscraper --version)
